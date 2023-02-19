@@ -1,0 +1,6 @@
+[submodule "references/nes_games/references/nes_games/snake"]
+	path = references/nes_games/references/nes_games/snake
+	url = https://gist.github.com/wkjagt/9043907
+[submodule "references/nes_games/snake"]
+	path = references/nes_games/snake
+	url = https://gist.github.com/wkjagt/9043907
