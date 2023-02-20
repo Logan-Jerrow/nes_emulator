@@ -20,19 +20,47 @@
 
 // Index Register Y (Y) - similar use cases as register X.
 
-// Processor status (P) - 8-bit register represents 7 status flags that can be set or unset
-// depending on the result of the last executed instruction (for example Z flag is set (1) if the
-// result of an operation is 0, and is unset/erased (0) otherwise)
+use bitflags::bitflags;
 
 use crate::opcode::OpCode;
+
+bitflags! {
+    /// # Status Register (P) http://wiki.nesdev.com/w/index.php/Status_flags
+    ///
+    /// Processor status (P) - 8-bit register represents 7 status flags that can be set or unset
+    /// depending on the result of the last executed instruction (for example Z flag is set (1) if the
+    /// result of an operation is 0, and is unset/erased (0) otherwise)
+    ///
+    ///  7 6 5 4 3 2 1 0
+    ///  N V _ B D I Z C
+    ///  | |   | | | | +--- Carry Flag
+    ///  | |   | | | +----- Zero Flag
+    ///  | |   | | +------- Interrupt Disable
+    ///  | |   | +--------- Decimal Mode (not used on NES)
+    ///  | |   +----------- Break Command
+    ///  | +--------------- Overflow Flag
+    ///  +----------------- Negative Flag
+    ///
+    pub struct CpuFlags: u8{
+        const CARRY             = 0b0000_0001;
+        const ZERO              = 0b0000_0010;
+        const INTERUPT_DISABLE  = 0b0000_0100;
+        const DECIMAL_MODE      = 0b0000_1000;
+        const BREAK             = 0b0001_0000;
+        const BREAK2            = 0b0010_0000;
+        const OVERFLOW          = 0b0100_0000;
+        const NEGATIV           = 0b1000_0000;
+    }
+}
 
 #[derive(Debug)]
 pub struct CPU {
     pub register_a: u8,
     pub register_x: u8,
     pub register_y: u8,
-    pub status: u8,
+    pub status: CpuFlags,
     pub program_counter: u16,
+    pub stack_pointer: u8,
     memory: [u8; 0xFFFF],
 }
 
@@ -42,7 +70,8 @@ impl Default for CPU {
             register_a: Default::default(),
             register_x: Default::default(),
             register_y: Default::default(),
-            status: Default::default(),
+            stack_pointer: Self::STACK_RESET,
+            status: CpuFlags::from_bits_truncate(0b0010_0100),
             program_counter: Default::default(),
             memory: [0; 0xFFFF],
         }
@@ -67,7 +96,9 @@ pub enum AddressingMode {
 impl CPU {
     // [0x8000 .. 0xFFFF] Program ROM (PRG ROM)
     const PRG_ROM_START_ADDR: u16 = 0x8000;
-    const PRG_ROM_EXEC_ADDR: u16 = 0xFFFC;
+    const PRG_ROM_EXEC_ADDR: u16 = 0xfffc;
+    const STACK: u16 = 0x0100;
+    const STACK_RESET: u8 = 0xfd;
 
     pub fn new() -> Self {
         Self::default()
@@ -96,7 +127,9 @@ impl CPU {
     pub fn reset(&mut self) {
         self.register_a = Default::default();
         self.register_x = Default::default();
-        self.status = Default::default();
+        self.register_y = Default::default();
+        self.stack_pointer = Self::STACK_RESET;
+        self.status = CpuFlags::from_bits_truncate(0b0010_0100);
 
         self.program_counter = self.mem_read_u16(Self::PRG_ROM_EXEC_ADDR);
     }
@@ -226,17 +259,17 @@ impl CPU {
 
     fn update_zero_flag(&mut self, result: u8) {
         if result == 0 {
-            self.status |= 0b0000_0010;
+            self.status.insert(CpuFlags::ZERO);
         } else {
-            self.status &= 0b1111_1101;
+            self.status.remove(CpuFlags::ZERO);
         }
     }
 
     fn update_negative_flag(&mut self, result: u8) {
         if result & 0b1000_0000 != 0 {
-            self.status |= 0b1000_0000;
+            self.status.insert(CpuFlags::NEGATIV);
         } else {
-            self.status &= 0b0111_1111;
+            self.status.remove(CpuFlags::NEGATIV);
         }
     }
 }
@@ -250,8 +283,8 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.load_and_run(vec![0xa9, 0x05, 0x00]);
         assert_eq!(cpu.register_a, 0x05);
-        assert!(cpu.status & 0b0000_0010 == 0b00);
-        assert!(cpu.status & 0b1000_0000 == 0);
+        assert!(cpu.status.bits() & 0b0000_0010 == 0b00);
+        assert!(cpu.status.bits() & 0b1000_0000 == 0);
     }
 
     #[test]
@@ -268,7 +301,7 @@ mod tests {
     fn test_0xa9_lda_zero_flag() {
         let mut cpu = CPU::new();
         cpu.load_and_run(vec![0xA9, 0x00, 0x00]);
-        assert!(cpu.status & 0b0000_0010 == 0b10);
+        assert!(cpu.status.bits() & 0b0000_0010 == 0b10);
     }
 
     #[test]
