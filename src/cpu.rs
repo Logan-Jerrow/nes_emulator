@@ -53,6 +53,13 @@ bitflags! {
     }
 }
 
+impl CpuFlags {
+    const INIT: u8 = 0b0010_0100;
+    fn new() -> Self {
+        Self::from_bits_truncate(Self::INIT)
+    }
+}
+
 #[derive(Debug)]
 pub struct CPU {
     pub register_a: u8,
@@ -71,7 +78,7 @@ impl Default for CPU {
             register_x: Default::default(),
             register_y: Default::default(),
             stack_pointer: Self::STACK_RESET,
-            status: CpuFlags::from_bits_truncate(0b0010_0100),
+            status: CpuFlags::new(),
             program_counter: Default::default(),
             memory: [0; 0xFFFF],
         }
