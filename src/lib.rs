@@ -14,5 +14,6 @@ pub mod apu; // Audio Processing Unit (APU)
 pub mod bus;
 pub mod cpu;
 pub mod gamepad;
+mod opcode;
 pub mod ppu;
 pub mod rom;
