@@ -24,10 +24,13 @@
 // depending on the result of the last executed instruction (for example Z flag is set (1) if the
 // result of an operation is 0, and is unset/erased (0) otherwise)
 
+use crate::opcode::OpCode;
+
 #[derive(Debug)]
 pub struct CPU {
     pub register_a: u8,
     pub register_x: u8,
+    pub register_y: u8,
     pub status: u8,
     pub program_counter: u16,
     memory: [u8; 0xFFFF],
@@ -38,6 +41,7 @@ impl Default for CPU {
         Self {
             register_a: Default::default(),
             register_x: Default::default(),
+            register_y: Default::default(),
             status: Default::default(),
             program_counter: Default::default(),
             memory: [0; 0xFFFF],
@@ -77,7 +81,7 @@ impl CPU {
         self.memory[addr as usize] = data;
     }
 
-    fn mem_read_u16(&mut self, pos: u16) -> u16 {
+    fn mem_read_u16(&self, pos: u16) -> u16 {
         let lo = self.mem_read(pos);
         let hi = self.mem_read(pos + 1);
         u16::from_le_bytes([lo, hi])
@@ -109,23 +113,80 @@ impl CPU {
         self.mem_write_u16(Self::PRG_ROM_EXEC_ADDR, Self::PRG_ROM_START_ADDR);
     }
 
+    fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
+        match mode {
+            AddressingMode::Immediate => self.program_counter,
+            AddressingMode::ZeroPage => self.mem_read(self.program_counter).into(),
+            AddressingMode::Absolute => self.mem_read_u16(self.program_counter),
+            AddressingMode::ZeroPage_X => {
+                let pos = self.mem_read(self.program_counter);
+                pos.wrapping_add(self.register_x).into()
+            }
+            AddressingMode::ZeroPage_Y => {
+                let pos = self.mem_read(self.program_counter);
+                pos.wrapping_add(self.register_y).into()
+            }
+            AddressingMode::Absolute_X => {
+                let base = self.mem_read_u16(self.program_counter);
+                base.wrapping_add(self.register_x.into())
+            }
+            AddressingMode::Absolute_Y => {
+                let base = self.mem_read_u16(self.program_counter);
+                base.wrapping_add(self.register_y.into())
+            }
+            AddressingMode::Indirect_X => {
+                let base = self.mem_read(self.program_counter);
+
+                let ptr: u8 = base.wrapping_add(self.register_x);
+                let lo = self.mem_read(ptr.into());
+                let hi = self.mem_read(ptr.wrapping_add(1).into());
+
+                u16::from_le_bytes([lo, hi])
+            }
+            AddressingMode::Indirect_Y => {
+                let base = self.mem_read(self.program_counter);
+                let lo = self.mem_read(base.into());
+                let hi = self.mem_read(base.wrapping_add(1).into());
+                let deref_base = u16::from_le_bytes([lo, hi]);
+
+                deref_base.wrapping_add(self.register_y.into())
+            }
+            AddressingMode::NoneAddressing => panic!("mode {mode:?} is not supported."),
+        }
+    }
+
     pub fn run(&mut self) {
+        let opcodes = &(*OpCode::get_instruction_codes());
+
         loop {
-            let ops_code = self.mem_read(self.program_counter);
+            let code = self.mem_read(self.program_counter);
             self.program_counter += 1;
+            let program_counter_state = self.program_counter;
 
-            match ops_code {
+            let opcode = opcodes
+                .get(&code)
+                .unwrap_or_else(|| panic!("OpCode {code:#04x} is not recognized."));
+
+            match code {
+                /* LDA */
                 0xA9 | 0xA5 | 0xB5 | 0xAD | 0xBD | 0xB9 | 0xA1 | 0xB1 => {
-                    let parameter = self.mem_read(self.program_counter);
-                    self.program_counter += 1;
-
-                    self.lda(parameter);
+                    self.lda(&opcode.mode);
                 }
+
+                /* STA */
+                0x85 | 0x95 | 0x8d | 0x9d | 0x99 | 0x81 | 0x91 => {
+                    self.sta(&opcode.mode);
+                }
+
                 0xAA => self.tax(),
                 0xE8 => self.inx(),
                 0x00 => return,
 
                 _ => todo!(),
+            }
+
+            if program_counter_state == self.program_counter {
+                self.program_counter += u16::from(opcode.len - 1);
             }
         }
         // Fetch next execution instruction from the instruction memory
@@ -135,9 +196,17 @@ impl CPU {
         // Repeat the cycle
     }
 
-    fn lda(&mut self, value: u8) {
+    fn lda(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+
         self.register_a = value;
         self.update_zero_and_negative_flags(self.register_a);
+    }
+
+    fn sta(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        self.mem_write(addr, self.register_a);
     }
 
     fn tax(&mut self) {
@@ -183,6 +252,16 @@ mod tests {
         assert_eq!(cpu.register_a, 0x05);
         assert!(cpu.status & 0b0000_0010 == 0b00);
         assert!(cpu.status & 0b1000_0000 == 0);
+    }
+
+    #[test]
+    fn test_lda_from_memory() {
+        let mut cpu = CPU::new();
+        cpu.mem_write(0x10, 0x55);
+
+        cpu.load_and_run(vec![0xa5, 0x10, 0x00]);
+
+        assert_eq!(cpu.register_a, 0x55);
     }
 
     #[test]

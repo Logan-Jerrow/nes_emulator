@@ -1,6 +1,8 @@
 use crate::cpu::AddressingMode;
 use once_cell::unsync::Lazy;
-use std::collections::HashSet;
+use std::{borrow::Borrow, collections::HashSet};
+
+type Code = u8;
 
 #[derive(Debug, Eq)]
 pub struct OpCode {
@@ -23,6 +25,12 @@ impl std::hash::Hash for OpCode {
     }
 }
 
+impl Borrow<Code> for OpCode {
+    fn borrow(&self) -> &Code {
+        &self.code
+    }
+}
+
 impl OpCode {
     pub fn new(
         code: u8,
@@ -40,33 +48,30 @@ impl OpCode {
         }
     }
 
-    pub fn get_codes() -> Lazy<HashSet<OpCode>> {
+    pub fn get_instruction_codes() -> Lazy<HashSet<OpCode>> {
         Lazy::new(|| {
-            let mut set = HashSet::new();
-            set.insert(Self::new(0x00, "BRK", 1, 7, AddressingMode::NoneAddressing));
-            set.insert(Self::new(0xaa, "TAX", 1, 2, AddressingMode::NoneAddressing));
-            set.insert(Self::new(0xe8, "INX", 1, 2, AddressingMode::NoneAddressing));
-
-            /* LDA */
-            set.insert(Self::new(0xa9, "LDA", 2, 2, AddressingMode::Immediate));
-            set.insert(Self::new(0xa5, "LDA", 2, 3, AddressingMode::ZeroPage));
-            set.insert(Self::new(0xb5, "LDA", 2, 4, AddressingMode::ZeroPage_X));
-            set.insert(Self::new(0xad, "LDA", 3, 4, AddressingMode::Absolute));
-            set.insert(Self::new(0xbd, "LDA", 3, 4, AddressingMode::Absolute_X)); /* +1 if page crossed */
-            set.insert(Self::new(0xb9, "LDA", 3, 4, AddressingMode::Absolute_Y)); /* +1 if page crossed */
-            set.insert(Self::new(0xa1, "LDA", 2, 6, AddressingMode::Indirect_X));
-            set.insert(Self::new(0xb1, "LDA", 2, 5, AddressingMode::Indirect_Y)); /* +1 if page crossed */
-
-            /* STA */
-            set.insert(Self::new(0x85, "STA", 2, 3, AddressingMode::ZeroPage));
-            set.insert(Self::new(0x95, "STA", 2, 4, AddressingMode::ZeroPage_X));
-            set.insert(Self::new(0x8d, "STA", 3, 4, AddressingMode::Absolute));
-            set.insert(Self::new(0x9d, "STA", 3, 5, AddressingMode::Absolute_X));
-            set.insert(Self::new(0x99, "STA", 3, 5, AddressingMode::Absolute_Y));
-            set.insert(Self::new(0x81, "STA", 2, 6, AddressingMode::Indirect_X));
-            set.insert(Self::new(0x91, "STA", 2, 6, AddressingMode::Indirect_Y));
-
-            set
+            HashSet::from([
+                (Self::new(0x00, "BRK", 1, 7, AddressingMode::NoneAddressing)),
+                (Self::new(0xaa, "TAX", 1, 2, AddressingMode::NoneAddressing)),
+                (Self::new(0xe8, "INX", 1, 2, AddressingMode::NoneAddressing)),
+                /* LDA */
+                (Self::new(0xa9, "LDA", 2, 2, AddressingMode::Immediate)),
+                (Self::new(0xa5, "LDA", 2, 3, AddressingMode::ZeroPage)),
+                (Self::new(0xb5, "LDA", 2, 4, AddressingMode::ZeroPage_X)),
+                (Self::new(0xad, "LDA", 3, 4, AddressingMode::Absolute)),
+                (Self::new(0xbd, "LDA", 3, 4, AddressingMode::Absolute_X)), /* +1 if page crossed */
+                (Self::new(0xb9, "LDA", 3, 4, AddressingMode::Absolute_Y)), /* +1 if page crossed */
+                (Self::new(0xa1, "LDA", 2, 6, AddressingMode::Indirect_X)),
+                (Self::new(0xb1, "LDA", 2, 5, AddressingMode::Indirect_Y)), /* +1 if page crossed */
+                /* STA */
+                (Self::new(0x85, "STA", 2, 3, AddressingMode::ZeroPage)),
+                (Self::new(0x95, "STA", 2, 4, AddressingMode::ZeroPage_X)),
+                (Self::new(0x8d, "STA", 3, 4, AddressingMode::Absolute)),
+                (Self::new(0x9d, "STA", 3, 5, AddressingMode::Absolute_X)),
+                (Self::new(0x99, "STA", 3, 5, AddressingMode::Absolute_Y)),
+                (Self::new(0x81, "STA", 2, 6, AddressingMode::Indirect_X)),
+                (Self::new(0x91, "STA", 2, 6, AddressingMode::Indirect_Y)),
+            ])
         })
     }
 }
