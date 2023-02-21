@@ -20,9 +20,8 @@
 
 // Index Register Y (Y) - similar use cases as register X.
 
-use bitflags::bitflags;
-
 use crate::opcode::OpCode;
+use bitflags::bitflags;
 
 bitflags! {
     /// # Status Register (P) http://wiki.nesdev.com/w/index.php/Status_flags
@@ -50,13 +49,14 @@ bitflags! {
         const BREAK2            = 0b0010_0000;
         const OVERFLOW          = 0b0100_0000;
         const NEGATIV           = 0b1000_0000;
+
+        const INIT              = Self::BREAK2.bits | Self::CARRY.bits;
     }
 }
 
 impl CpuFlags {
-    const INIT: u8 = 0b0010_0100;
     fn new() -> Self {
-        Self::from_bits_truncate(Self::INIT)
+        Self::from_bits_truncate(Self::INIT.bits)
     }
 }
 
@@ -100,24 +100,10 @@ pub enum AddressingMode {
     NoneAddressing,
 }
 
-impl CPU {
-    // [0x8000 .. 0xFFFF] Program ROM (PRG ROM)
-    const PRG_ROM_START_ADDR: u16 = 0x8000;
-    const PRG_ROM_EXEC_ADDR: u16 = 0xfffc;
-    const STACK: u16 = 0x0100;
-    const STACK_RESET: u8 = 0xfd;
+trait Memory {
+    fn mem_read(&self, addr: u16) -> u8;
 
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    fn mem_read(&self, addr: u16) -> u8 {
-        self.memory[addr as usize]
-    }
-
-    fn mem_write(&mut self, addr: u16, data: u8) {
-        self.memory[addr as usize] = data;
-    }
+    fn mem_write(&mut self, addr: u16, data: u8);
 
     fn mem_read_u16(&self, pos: u16) -> u16 {
         let lo = self.mem_read(pos);
@@ -130,13 +116,35 @@ impl CPU {
         self.mem_write(pos, lo);
         self.mem_write(pos + 1, hi);
     }
+}
+
+impl Memory for CPU {
+    fn mem_read(&self, addr: u16) -> u8 {
+        self.memory[addr as usize]
+    }
+
+    fn mem_write(&mut self, addr: u16, data: u8) {
+        self.memory[addr as usize] = data;
+    }
+}
+
+impl CPU {
+    // [0x8000 .. 0xFFFF] Program ROM (PRG ROM)
+    const PRG_ROM_START_ADDR: u16 = 0x8000;
+    const PRG_ROM_EXEC_ADDR: u16 = 0xfffc;
+    const STACK: u16 = 0x0100;
+    const STACK_RESET: u8 = 0xfd;
+
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn reset(&mut self) {
         self.register_a = Default::default();
         self.register_x = Default::default();
         self.register_y = Default::default();
         self.stack_pointer = Self::STACK_RESET;
-        self.status = CpuFlags::from_bits_truncate(0b0010_0100);
+        self.status = CpuFlags::new();
 
         self.program_counter = self.mem_read_u16(Self::PRG_ROM_EXEC_ADDR);
     }
