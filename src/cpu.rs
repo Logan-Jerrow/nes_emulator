@@ -67,7 +67,7 @@ pub struct CPU {
     pub register_y: u8,
     pub status: CpuFlags,
     pub program_counter: u16,
-    pub stack_pointer: u8,
+    pub stack_ptr: u8,
     memory: [u8; 0xFFFF],
 }
 
@@ -77,7 +77,7 @@ impl Default for CPU {
             register_a: Default::default(),
             register_x: Default::default(),
             register_y: Default::default(),
-            stack_pointer: Self::STACK_RESET,
+            stack_ptr: Self::STACK_RESET,
             status: CpuFlags::new(),
             program_counter: Default::default(),
             memory: [0; 0xFFFF],
@@ -143,7 +143,7 @@ impl CPU {
         self.register_a = Default::default();
         self.register_x = Default::default();
         self.register_y = Default::default();
-        self.stack_pointer = Self::STACK_RESET;
+        self.stack_ptr = Self::STACK_RESET;
         self.status = CpuFlags::new();
 
         self.program_counter = self.mem_read_u16(Self::PRG_ROM_EXEC_ADDR);
