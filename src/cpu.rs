@@ -132,8 +132,24 @@ impl CPU {
     // [0x8000 .. 0xFFFF] Program ROM (PRG ROM)
     const PRG_ROM_START_ADDR: u16 = 0x8000;
     const PRG_ROM_EXEC_ADDR: u16 = 0xfffc;
-    const STACK: u16 = 0x0100;
-    const STACK_RESET: u8 = 0xfd;
+    // Stack Pointer - Memory space [0x0100 .. 0x01FF] is used for stack.
+    const STACK_MEMORY_START: u16 = 0x0100;
+    const STACK_MEMORY_END: u16 = 0x01ff;
+    // https://archive.nes.science/nesdev-forums/f3/t715.xhtml#p7591
+    // by WedNESday on 2005-12-21 (#7591)
+    // It doesn't matter where it starts as it wraps anyway and all programmers are aware of that.
+    // The NES may set it to 0xFD on power-up/reset (I wasn't aware of that until now) but don't
+    // worry about it. Most emulators of the 6502 set it to 0xFF. Just make sure that your stack
+    // pointer is 8-bit and works something like this;
+    //
+    // CPU.Memory[Stack + 0x100] = ...
+    //
+    //
+    // https://old.reddit.com/r/EmuDev/comments/g8ky04/6502_startreset_sequence_and_nestest/
+    //
+    // It started at zero. As part of the reset process the CPU decremented S three times. By the
+    // time the first program instruction is executed S is $FD (0 minus 3).
+    const STACK_RESET: u8 = 0xfd; // 0 - 3 = 0xfd (Wrapping!)
 
     pub fn new() -> Self {
         Self::default()
