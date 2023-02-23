@@ -1,5 +1,6 @@
 {
     "conventionalCommits.scopes": [
-        "cpu"
+        "cpu",
+        "opcodes"
     ]
 }
