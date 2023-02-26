@@ -243,9 +243,15 @@ impl CPU {
 
                 /* STA */
                 Mnemonic::Sta => self.sta(&opcode.mode),
-                Mnemonic::Tax => self.tax(),
-                Mnemonic::Inx => self.inx(),
                 Mnemonic::Brk => return,
+                /* Transfer */
+                Mnemonic::Tax => self.tax(),
+                Mnemonic::Tay => self.tay(),
+                Mnemonic::Txa => self.txa(),
+                Mnemonic::Tya => self.tya(),
+                /* Increment */
+                Mnemonic::Inx => self.inx(),
+                Mnemonic::Iny => self.iny(),
             }
 
             if program_counter_state == self.program_counter {

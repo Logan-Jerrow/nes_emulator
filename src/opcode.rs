@@ -22,7 +22,11 @@ pub enum Mnemonic {
     Sta,
     Brk,
     Tax,
+    Tay,
+    Txa,
+    Tya,
     Inx,
+    Iny,
 }
 
 impl PartialEq for OpCode {
@@ -60,10 +64,16 @@ impl OpCode {
         }
     }
 
-    pub const INSTRUCTIONS: [Self; 39] = [
+    pub const INSTRUCTIONS: [Self; 43] = [
         (Self::new(0x00, Mnemonic::Brk, 1, 7, AddressingMode::NoneAddressing)),
+        /* Transfer */
         (Self::new(0xaa, Mnemonic::Tax, 1, 2, AddressingMode::NoneAddressing)),
+        (Self::new(0xa8, Mnemonic::Tay, 1, 2, AddressingMode::NoneAddressing)),
+        (Self::new(0x8a, Mnemonic::Txa, 1, 2, AddressingMode::NoneAddressing)),
+        (Self::new(0x98, Mnemonic::Tya, 1, 2, AddressingMode::NoneAddressing)),
+        /* Increment */
         (Self::new(0xe8, Mnemonic::Inx, 1, 2, AddressingMode::NoneAddressing)),
+        (Self::new(0xc8, Mnemonic::Iny, 1, 2, AddressingMode::NoneAddressing)),
         /* LDA */
         (Self::new(0xa9, Mnemonic::Lda, 2, 2, AddressingMode::Immediate)),
         (Self::new(0xa5, Mnemonic::Lda, 2, 3, AddressingMode::ZeroPage)),
