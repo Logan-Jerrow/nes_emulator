@@ -20,7 +20,7 @@
 
 // Index Register Y (Y) - similar use cases as register X.
 
-use crate::opcode::OpCode;
+use crate::opcode::{Mnemonic, OpCode};
 use bitflags::bitflags;
 
 bitflags! {
@@ -231,22 +231,18 @@ impl CPU {
                 .get(&code)
                 .unwrap_or_else(|| panic!("OpCode {code:#04x} is not recognized."));
 
-            match code {
+            match opcode.mnemonic {
+                Mnemonic::Adc => todo!(),
+                Mnemonic::And => todo!(),
+                Mnemonic::Asl => todo!(),
                 /* LDA */
-                0xA9 | 0xA5 | 0xB5 | 0xAD | 0xBD | 0xB9 | 0xA1 | 0xB1 => {
-                    self.lda(&opcode.mode);
-                }
+                Mnemonic::Lda => self.lda(&opcode.mode),
 
                 /* STA */
-                0x85 | 0x95 | 0x8d | 0x9d | 0x99 | 0x81 | 0x91 => {
-                    self.sta(&opcode.mode);
-                }
-
-                0xAA => self.tax(),
-                0xE8 => self.inx(),
-                0x00 => return,
-
-                _ => todo!(),
+                Mnemonic::Sta => self.sta(&opcode.mode),
+                Mnemonic::Tax => self.tax(),
+                Mnemonic::Inx => self.inx(),
+                Mnemonic::Brk => return,
             }
 
             if program_counter_state == self.program_counter {

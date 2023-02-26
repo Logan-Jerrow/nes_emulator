@@ -1,16 +1,28 @@
 use crate::cpu::AddressingMode;
 use once_cell::unsync::Lazy;
-use std::{borrow::Borrow, collections::HashSet};
+use std::{borrow::Borrow, collections::HashSet, str::FromStr};
 
 type Code = u8;
 
-#[derive(Debug, Eq)]
+#[derive(Debug, Eq)] // PartialEq see impl
 pub struct OpCode {
     pub code: u8,
-    pub mnemonic: &'static str,
+    pub mnemonic: Mnemonic,
     pub len: u8,
     pub cycles: u8,
     pub mode: AddressingMode,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Mnemonic {
+    Adc,
+    And,
+    Asl,
+    Lda,
+    Sta,
+    Brk,
+    Tax,
+    Inx,
 }
 
 impl PartialEq for OpCode {
@@ -34,7 +46,7 @@ impl Borrow<Code> for OpCode {
 impl OpCode {
     pub const fn new(
         code: u8,
-        mnemonic: &'static str,
+        mnemonic: Mnemonic,
         len: u8,
         cycles: u8,
         mode: AddressingMode,
@@ -49,50 +61,50 @@ impl OpCode {
     }
 
     pub const INSTRUCTIONS: [Self; 39] = [
-        (Self::new(0x00, "BRK", 1, 7, AddressingMode::NoneAddressing)),
-        (Self::new(0xaa, "TAX", 1, 2, AddressingMode::NoneAddressing)),
-        (Self::new(0xe8, "INX", 1, 2, AddressingMode::NoneAddressing)),
+        (Self::new(0x00, Mnemonic::Brk, 1, 7, AddressingMode::NoneAddressing)),
+        (Self::new(0xaa, Mnemonic::Tax, 1, 2, AddressingMode::NoneAddressing)),
+        (Self::new(0xe8, Mnemonic::Inx, 1, 2, AddressingMode::NoneAddressing)),
         /* LDA */
-        (Self::new(0xa9, "LDA", 2, 2, AddressingMode::Immediate)),
-        (Self::new(0xa5, "LDA", 2, 3, AddressingMode::ZeroPage)),
-        (Self::new(0xb5, "LDA", 2, 4, AddressingMode::ZeroPage_X)),
-        (Self::new(0xad, "LDA", 3, 4, AddressingMode::Absolute)),
-        (Self::new(0xbd, "LDA", 3, 4, AddressingMode::Absolute_X)), /* +1 if page crossed */
-        (Self::new(0xb9, "LDA", 3, 4, AddressingMode::Absolute_Y)), /* +1 if page crossed */
-        (Self::new(0xa1, "LDA", 2, 6, AddressingMode::Indirect_X)),
-        (Self::new(0xb1, "LDA", 2, 5, AddressingMode::Indirect_Y)), /* +1 if page crossed */
+        (Self::new(0xa9, Mnemonic::Lda, 2, 2, AddressingMode::Immediate)),
+        (Self::new(0xa5, Mnemonic::Lda, 2, 3, AddressingMode::ZeroPage)),
+        (Self::new(0xb5, Mnemonic::Lda, 2, 4, AddressingMode::ZeroPage_X)),
+        (Self::new(0xad, Mnemonic::Lda, 3, 4, AddressingMode::Absolute)),
+        (Self::new(0xbd, Mnemonic::Lda, 3, 4, AddressingMode::Absolute_X)), /* +1 if page crossed */
+        (Self::new(0xb9, Mnemonic::Lda, 3, 4, AddressingMode::Absolute_Y)), /* +1 if page crossed */
+        (Self::new(0xa1, Mnemonic::Lda, 2, 6, AddressingMode::Indirect_X)),
+        (Self::new(0xb1, Mnemonic::Lda, 2, 5, AddressingMode::Indirect_Y)), /* +1 if page crossed */
         /* STA */
-        (Self::new(0x85, "STA", 2, 3, AddressingMode::ZeroPage)),
-        (Self::new(0x95, "STA", 2, 4, AddressingMode::ZeroPage_X)),
-        (Self::new(0x8d, "STA", 3, 4, AddressingMode::Absolute)),
-        (Self::new(0x9d, "STA", 3, 5, AddressingMode::Absolute_X)),
-        (Self::new(0x99, "STA", 3, 5, AddressingMode::Absolute_Y)),
-        (Self::new(0x81, "STA", 2, 6, AddressingMode::Indirect_X)),
-        (Self::new(0x91, "STA", 2, 6, AddressingMode::Indirect_Y)),
+        (Self::new(0x85, Mnemonic::Sta, 2, 3, AddressingMode::ZeroPage)),
+        (Self::new(0x95, Mnemonic::Sta, 2, 4, AddressingMode::ZeroPage_X)),
+        (Self::new(0x8d, Mnemonic::Sta, 3, 4, AddressingMode::Absolute)),
+        (Self::new(0x9d, Mnemonic::Sta, 3, 5, AddressingMode::Absolute_X)),
+        (Self::new(0x99, Mnemonic::Sta, 3, 5, AddressingMode::Absolute_Y)),
+        (Self::new(0x81, Mnemonic::Sta, 2, 6, AddressingMode::Indirect_X)),
+        (Self::new(0x91, Mnemonic::Sta, 2, 6, AddressingMode::Indirect_Y)),
         /* ADC */
-        (Self::new(0x69, "ADC", 2, 2, AddressingMode::Immediate)),
-        (Self::new(0x65, "ADC", 2, 3, AddressingMode::ZeroPage)),
-        (Self::new(0x75, "ADC", 2, 4, AddressingMode::ZeroPage_X)),
-        (Self::new(0x6d, "ADC", 3, 4, AddressingMode::Absolute)),
-        (Self::new(0x7d, "ADC", 3, 4, AddressingMode::Absolute_X)), /* +1 if page crossed */
-        (Self::new(0x79, "ADC", 3, 4, AddressingMode::Absolute_Y)), /* +1 if page crossed */
-        (Self::new(0x61, "ADC", 2, 6, AddressingMode::Indirect_X)),
-        (Self::new(0x71, "ADC", 2, 5, AddressingMode::Indirect_Y)), /* +1 if page crossed */
+        (Self::new(0x69, Mnemonic::Adc, 2, 2, AddressingMode::Immediate)),
+        (Self::new(0x65, Mnemonic::Adc, 2, 3, AddressingMode::ZeroPage)),
+        (Self::new(0x75, Mnemonic::Adc, 2, 4, AddressingMode::ZeroPage_X)),
+        (Self::new(0x6d, Mnemonic::Adc, 3, 4, AddressingMode::Absolute)),
+        (Self::new(0x7d, Mnemonic::Adc, 3, 4, AddressingMode::Absolute_X)), /* +1 if page crossed */
+        (Self::new(0x79, Mnemonic::Adc, 3, 4, AddressingMode::Absolute_Y)), /* +1 if page crossed */
+        (Self::new(0x61, Mnemonic::Adc, 2, 6, AddressingMode::Indirect_X)),
+        (Self::new(0x71, Mnemonic::Adc, 2, 5, AddressingMode::Indirect_Y)), /* +1 if page crossed */
         /* AND */
-        (Self::new(0x29, "AND", 2, 2, AddressingMode::Immediate)),
-        (Self::new(0x25, "AND", 2, 3, AddressingMode::ZeroPage)),
-        (Self::new(0x35, "AND", 2, 4, AddressingMode::ZeroPage_X)),
-        (Self::new(0x2d, "AND", 3, 4, AddressingMode::Absolute)),
-        (Self::new(0x3d, "AND", 3, 4, AddressingMode::Absolute_X)), /* +1 if page crossed */
-        (Self::new(0x39, "AND", 3, 4, AddressingMode::Absolute_Y)), /* +1 if page crossed */
-        (Self::new(0x21, "AND", 2, 6, AddressingMode::Indirect_X)),
-        (Self::new(0x31, "AND", 2, 5, AddressingMode::Indirect_Y)), /* +1 if page crossed */
+        (Self::new(0x29, Mnemonic::And, 2, 2, AddressingMode::Immediate)),
+        (Self::new(0x25, Mnemonic::And, 2, 3, AddressingMode::ZeroPage)),
+        (Self::new(0x35, Mnemonic::And, 2, 4, AddressingMode::ZeroPage_X)),
+        (Self::new(0x2d, Mnemonic::And, 3, 4, AddressingMode::Absolute)),
+        (Self::new(0x3d, Mnemonic::And, 3, 4, AddressingMode::Absolute_X)), /* +1 if page crossed */
+        (Self::new(0x39, Mnemonic::And, 3, 4, AddressingMode::Absolute_Y)), /* +1 if page crossed */
+        (Self::new(0x21, Mnemonic::And, 2, 6, AddressingMode::Indirect_X)),
+        (Self::new(0x31, Mnemonic::And, 2, 5, AddressingMode::Indirect_Y)), /* +1 if page crossed */
         /* ASL - Arithmetic Shift Left */
-        (Self::new(0x0a, "ASL", 1, 2, AddressingMode::NoneAddressing)),
-        (Self::new(0x06, "ASL", 2, 5, AddressingMode::ZeroPage)),
-        (Self::new(0x16, "ASL", 2, 6, AddressingMode::ZeroPage_X)),
-        (Self::new(0x0e, "ASL", 3, 6, AddressingMode::Absolute)),
-        (Self::new(0x1e, "ASL", 3, 7, AddressingMode::Absolute_X)),
+        (Self::new(0x0a, Mnemonic::Asl, 1, 2, AddressingMode::NoneAddressing)),
+        (Self::new(0x06, Mnemonic::Asl, 2, 5, AddressingMode::ZeroPage)),
+        (Self::new(0x16, Mnemonic::Asl, 2, 6, AddressingMode::ZeroPage_X)),
+        (Self::new(0x0e, Mnemonic::Asl, 3, 6, AddressingMode::Absolute)),
+        (Self::new(0x1e, Mnemonic::Asl, 3, 7, AddressingMode::Absolute_X)),
     ];
 
     pub fn get_instruction_codes() -> Lazy<HashSet<Self>> {
