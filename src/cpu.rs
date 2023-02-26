@@ -57,7 +57,7 @@ bitflags! {
 }
 
 impl CpuFlags {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self::from_bits_truncate(Self::INIT.bits)
     }
 }
@@ -153,6 +153,7 @@ impl CPU {
     // time the first program instruction is executed S is $FD (0 minus 3).
     const STACK_RESET: u8 = 0xfd; // 0 - 3 = 0xfd (Wrapping!)
 
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -167,15 +168,15 @@ impl CPU {
         self.program_counter = self.mem_read_u16(Self::PRG_ROM_EXEC_ADDR);
     }
 
-    pub fn load_and_run(&mut self, program: Vec<u8>) {
+    pub fn load_and_run(&mut self, program: &[u8]) {
         self.load(program);
         self.reset();
         self.run();
     }
 
-    pub fn load(&mut self, program: Vec<u8>) {
+    pub fn load(&mut self, program: &[u8]) {
         let start: usize = Self::PRG_ROM_START_ADDR.into();
-        self.memory[start..(start + program.len())].copy_from_slice(&program[..]);
+        self.memory[start..(start + program.len())].copy_from_slice(program);
         self.mem_write_u16(Self::PRG_ROM_EXEC_ADDR, Self::PRG_ROM_START_ADDR);
     }
 
@@ -272,7 +273,7 @@ impl CPU {
     }
 
     fn update_negative_flag(&mut self, result: u8) {
-        if result & 0b1000_0000 != 0 {
+        if result >> 7 == 1 {
             self.status.insert(CpuFlags::NEGATIV);
         } else {
             self.status.remove(CpuFlags::NEGATIV);
@@ -287,7 +288,7 @@ mod tests {
     #[test]
     fn test_0xa9_lda_immidiate_load_data() {
         let mut cpu = CPU::new();
-        cpu.load_and_run(vec![0xa9, 0x05, 0x00]);
+        cpu.load_and_run(&[0xa9, 0x05, 0x00]);
         assert_eq!(cpu.register_a, 0x05);
         assert!(cpu.status.bits() & 0b0000_0010 == 0b00);
         assert!(cpu.status.bits() & 0b1000_0000 == 0);
@@ -298,7 +299,7 @@ mod tests {
         let mut cpu = CPU::new();
         cpu.mem_write(0x10, 0x55);
 
-        cpu.load_and_run(vec![0xa5, 0x10, 0x00]);
+        cpu.load_and_run(&[0xa5, 0x10, 0x00]);
 
         assert_eq!(cpu.register_a, 0x55);
     }
@@ -306,31 +307,31 @@ mod tests {
     #[test]
     fn test_0xa9_lda_zero_flag() {
         let mut cpu = CPU::new();
-        cpu.load_and_run(vec![0xA9, 0x00, 0x00]);
+        cpu.load_and_run(&[0xA9, 0x00, 0x00]);
         assert!(cpu.status.bits() & 0b0000_0010 == 0b10);
     }
 
     #[test]
     fn test_0xaa_tax_move_a_to_x() {
         let mut cpu = CPU::new();
-        cpu.load_and_run(vec![0xA9, 0x0A, 0xAA, 0x00]);
+        cpu.load_and_run(&[0xA9, 0x0A, 0xAA, 0x00]);
 
-        assert_eq!(cpu.register_x, 10)
+        assert_eq!(cpu.register_x, 10);
     }
 
     #[test]
     fn test_5_ops_working_together() {
         let mut cpu = CPU::new();
-        cpu.load_and_run(vec![0xa9, 0xc0, 0xaa, 0xe8, 0x00]);
+        cpu.load_and_run(&[0xa9, 0xc0, 0xaa, 0xe8, 0x00]);
 
-        assert_eq!(cpu.register_x, 0xc1)
+        assert_eq!(cpu.register_x, 0xc1);
     }
 
     #[test]
     fn test_inx_overflow() {
         let mut cpu = CPU::new();
-        cpu.load_and_run(vec![0xA9, 0xFF, 0xAA, 0xe8, 0xe8, 0x00]);
+        cpu.load_and_run(&[0xA9, 0xFF, 0xAA, 0xe8, 0xe8, 0x00]);
 
-        assert_eq!(cpu.register_x, 1)
+        assert_eq!(cpu.register_x, 1);
     }
 }
