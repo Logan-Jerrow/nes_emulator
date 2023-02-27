@@ -238,17 +238,24 @@ impl CPU {
                 Mnemonic::Adc => todo!(),
                 Mnemonic::And => todo!(),
                 Mnemonic::Asl => todo!(),
+                Mnemonic::Brk => return,
+
                 /* LDA */
                 Mnemonic::Lda => self.lda(&opcode.mode),
+                Mnemonic::Ldx => self.ldx(&opcode.mode),
+                Mnemonic::Ldy => self.ldy(&opcode.mode),
 
                 /* STA */
                 Mnemonic::Sta => self.sta(&opcode.mode),
-                Mnemonic::Brk => return,
+                Mnemonic::Stx => self.stx(&opcode.mode),
+                Mnemonic::Sty => self.sty(&opcode.mode),
+
                 /* Transfer */
                 Mnemonic::Tax => self.tax(),
                 Mnemonic::Tay => self.tay(),
                 Mnemonic::Txa => self.txa(),
                 Mnemonic::Tya => self.tya(),
+
                 /* Increment */
                 Mnemonic::Inx => self.inx(),
                 Mnemonic::Iny => self.iny(),

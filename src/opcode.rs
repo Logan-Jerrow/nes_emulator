@@ -18,13 +18,21 @@ pub enum Mnemonic {
     Adc,
     And,
     Asl,
-    Lda,
-    Sta,
     Brk,
+    /* Load */
+    Lda,
+    Ldx,
+    Ldy,
+    /* Store */
+    Sta,
+    Stx,
+    Sty,
+    /* Transfer */
     Tax,
     Tay,
     Txa,
     Tya,
+    /* Increment */
     Inx,
     Iny,
 }
@@ -64,7 +72,7 @@ impl OpCode {
         }
     }
 
-    pub const INSTRUCTIONS: [Self; 43] = [
+    pub const INSTRUCTIONS: [Self; 59] = [
         (Self::new(0x00, Mnemonic::Brk, 1, 7, AddressingMode::NoneAddressing)),
         /* Transfer */
         (Self::new(0xaa, Mnemonic::Tax, 1, 2, AddressingMode::NoneAddressing)),
@@ -83,6 +91,18 @@ impl OpCode {
         (Self::new(0xb9, Mnemonic::Lda, 3, 4, AddressingMode::Absolute_Y)), /* +1 if page crossed */
         (Self::new(0xa1, Mnemonic::Lda, 2, 6, AddressingMode::Indirect_X)),
         (Self::new(0xb1, Mnemonic::Lda, 2, 5, AddressingMode::Indirect_Y)), /* +1 if page crossed */
+        /* LDX */
+        (Self::new(0xa2, Mnemonic::Ldx, 2, 2, AddressingMode::Immediate)),
+        (Self::new(0xa6, Mnemonic::Ldx, 2, 3, AddressingMode::ZeroPage)),
+        (Self::new(0xb6, Mnemonic::Ldx, 2, 4, AddressingMode::ZeroPage_Y)),
+        (Self::new(0xae, Mnemonic::Ldx, 3, 4, AddressingMode::Absolute)),
+        (Self::new(0xbe, Mnemonic::Ldx, 3, 4, AddressingMode::Absolute_Y)), /* +1 if page crossed */
+        /* LDY */
+        (Self::new(0xa0, Mnemonic::Ldy, 2, 2, AddressingMode::Immediate)),
+        (Self::new(0xa4, Mnemonic::Ldy, 2, 3, AddressingMode::ZeroPage)),
+        (Self::new(0xb4, Mnemonic::Ldy, 2, 4, AddressingMode::ZeroPage_X)),
+        (Self::new(0xac, Mnemonic::Ldy, 3, 4, AddressingMode::Absolute)),
+        (Self::new(0xbc, Mnemonic::Ldy, 3, 4, AddressingMode::Absolute_X)), /* +1 if page crossed */
         /* STA */
         (Self::new(0x85, Mnemonic::Sta, 2, 3, AddressingMode::ZeroPage)),
         (Self::new(0x95, Mnemonic::Sta, 2, 4, AddressingMode::ZeroPage_X)),
@@ -91,6 +111,14 @@ impl OpCode {
         (Self::new(0x99, Mnemonic::Sta, 3, 5, AddressingMode::Absolute_Y)),
         (Self::new(0x81, Mnemonic::Sta, 2, 6, AddressingMode::Indirect_X)),
         (Self::new(0x91, Mnemonic::Sta, 2, 6, AddressingMode::Indirect_Y)),
+        /* STX */
+        (Self::new(0x86, Mnemonic::Stx, 2, 3, AddressingMode::ZeroPage)),
+        (Self::new(0x96, Mnemonic::Stx, 2, 4, AddressingMode::ZeroPage_Y)),
+        (Self::new(0x8e, Mnemonic::Stx, 3, 4, AddressingMode::Absolute)),
+        /* STY */
+        (Self::new(0x84, Mnemonic::Sty, 2, 3, AddressingMode::ZeroPage)),
+        (Self::new(0x94, Mnemonic::Sty, 2, 4, AddressingMode::ZeroPage_Y)),
+        (Self::new(0x8c, Mnemonic::Sty, 3, 4, AddressingMode::Absolute)),
         /* ADC */
         (Self::new(0x69, Mnemonic::Adc, 2, 2, AddressingMode::Immediate)),
         (Self::new(0x65, Mnemonic::Adc, 2, 3, AddressingMode::ZeroPage)),
