@@ -235,8 +235,8 @@ impl CPU {
                 .unwrap_or_else(|| panic!("OpCode {code:#04x} is not recognized."));
 
             match opcode.mnemonic {
-                Mnemonic::Adc => todo!(),
-                Mnemonic::And => todo!(),
+                Mnemonic::Adc => self.adc(&opcode.mode),
+                Mnemonic::And => self.and(&opcode.mode),
                 Mnemonic::Asl => todo!(),
                 Mnemonic::Brk => return,
 
