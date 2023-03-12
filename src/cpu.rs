@@ -26,11 +26,15 @@ use bitflags::bitflags;
 mod instructions;
 
 bitflags! {
-    /// # Status Register (P) http://wiki.nesdev.com/w/index.php/Status_flags
+    /// # Status Register (P)
+    ///
+    /// http://wiki.nesdev.com/w/index.php/Status_flags
     ///
     /// Processor status (P) - 8-bit register represents 7 status flags that can be set or unset
     /// depending on the result of the last executed instruction (for example Z flag is set (1) if the
     /// result of an operation is 0, and is unset/erased (0) otherwise)
+    ///
+    /// # Figure
     ///
     ///  7 6 5 4 3 2 1 0
     ///  N V _ B D I Z C
@@ -52,13 +56,13 @@ bitflags! {
         const OVERFLOW          = 0b0100_0000;
         const NEGATIV           = 0b1000_0000;
 
-        const INIT              = Self::BREAK2.bits | Self::CARRY.bits;
+        const INIT = Self::BREAK2.bits | Self::CARRY.bits;
     }
 }
 
 impl CpuFlags {
     const fn new() -> Self {
-        Self::from_bits_truncate(Self::INIT.bits)
+        Self::INIT
     }
 }
 
