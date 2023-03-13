@@ -130,7 +130,7 @@ impl CPU {
         self.mem_write_u16(Self::PRG_ROM_EXEC_ADDR, Self::PRG_ROM_START_ADDR);
     }
 
-    fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
+    fn get_operand_address(&self, mode: AddressingMode) -> u16 {
         match mode {
             AddressingMode::Immediate => self.program_counter,
             AddressingMode::ZeroPage => self.mem_read(self.program_counter).into(),
@@ -183,8 +183,8 @@ impl CPU {
 
             let opcode = OpCode::decode(raw_opcode);
             match opcode.mnemonic {
-                Mnemonic::Adc => self.adc(&opcode.mode),
-                Mnemonic::And => self.and(&opcode.mode),
+                Mnemonic::Adc => self.adc(opcode.mode),
+                Mnemonic::And => self.and(opcode.mode),
                 Mnemonic::Asl => todo!(),
                 Mnemonic::Bcc => todo!(),
                 Mnemonic::Bcs => todo!(),
@@ -212,9 +212,9 @@ impl CPU {
                 Mnemonic::Iny => self.iny(),
                 Mnemonic::Jmp => todo!(),
                 Mnemonic::Jsr => todo!(),
-                Mnemonic::Lda => self.lda(&opcode.mode),
-                Mnemonic::Ldx => self.ldx(&opcode.mode),
-                Mnemonic::Ldy => self.ldy(&opcode.mode),
+                Mnemonic::Lda => self.lda(opcode.mode),
+                Mnemonic::Ldx => self.ldx(opcode.mode),
+                Mnemonic::Ldy => self.ldy(opcode.mode),
                 Mnemonic::Lsr => todo!(),
                 Mnemonic::Nop => todo!(),
                 Mnemonic::Ora => todo!(),
@@ -230,9 +230,9 @@ impl CPU {
                 Mnemonic::Sec => todo!(),
                 Mnemonic::Sed => todo!(),
                 Mnemonic::Sei => todo!(),
-                Mnemonic::Sta => self.sta(&opcode.mode),
-                Mnemonic::Stx => self.stx(&opcode.mode),
-                Mnemonic::Sty => self.sty(&opcode.mode),
+                Mnemonic::Sta => self.sta(opcode.mode),
+                Mnemonic::Stx => self.stx(opcode.mode),
+                Mnemonic::Sty => self.sty(opcode.mode),
                 Mnemonic::Tax => self.tax(),
                 Mnemonic::Tay => self.tay(),
                 Mnemonic::Tsx => todo!(),

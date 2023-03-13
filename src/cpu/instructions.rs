@@ -2,17 +2,17 @@ use super::{AddressingMode, CpuFlags, Memory, CPU};
 
 impl CPU {
     #[allow(clippy::cast_possible_truncation)]
-    pub fn adc(&mut self, mode: &AddressingMode) {
+    pub fn adc(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
 
         // convert u8 to u16 for easy carry bit logic
         let sum: u16 = u16::from(self.register_a)
             + u16::from(value) // add accmulator and value together; no worry if overflow because both are u8s
-            + u16::from(self.status.contains(CpuFlags::CARRY)); // Add 1 carry bit if set
+            + u16::from(self.status.contains(CpuFlags::CARRY)); // Add 1 carry bit was set
 
         // Should carry bit be set/removed
-        if (sum > 0xff) {
+        if (sum > 0xFF) {
             self.status.insert(CpuFlags::CARRY);
         } else {
             self.status.remove(CpuFlags::CARRY);
@@ -33,7 +33,7 @@ impl CPU {
         self.update_zero_and_negative_flags(result);
     }
 
-    pub fn and(&mut self, mode: &AddressingMode) {
+    pub fn and(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
 
@@ -41,7 +41,7 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a);
     }
 
-    pub fn lda(&mut self, mode: &AddressingMode) {
+    pub fn lda(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
 
@@ -49,7 +49,7 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_a);
     }
 
-    pub fn ldx(&mut self, mode: &AddressingMode) {
+    pub fn ldx(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
 
@@ -57,7 +57,7 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_x);
     }
 
-    pub fn ldy(&mut self, mode: &AddressingMode) {
+    pub fn ldy(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
 
@@ -65,17 +65,17 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_y);
     }
 
-    pub fn sta(&mut self, mode: &AddressingMode) {
+    pub fn sta(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
         self.mem_write(addr, self.register_a);
     }
 
-    pub fn stx(&mut self, mode: &AddressingMode) {
+    pub fn stx(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
         self.mem_write(addr, self.register_x);
     }
 
-    pub fn sty(&mut self, mode: &AddressingMode) {
+    pub fn sty(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
         self.mem_write(addr, self.register_y);
     }
