@@ -185,7 +185,7 @@ impl CPU {
             match opcode.mnemonic {
                 Mnemonic::Adc => self.adc(opcode.mode),
                 Mnemonic::And => self.and(opcode.mode),
-                Mnemonic::Asl => todo!(),
+                Mnemonic::Asl => self.asl(opcode.mode),
                 Mnemonic::Bcc => todo!(),
                 Mnemonic::Bcs => todo!(),
                 Mnemonic::Beq => todo!(),

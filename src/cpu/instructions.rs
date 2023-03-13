@@ -48,7 +48,41 @@ impl CPU {
     /// Shifts all bits left one position. 0 is shifted into bit 0 and the
     /// original bit 7 is shifted into the Carry.
     pub fn asl(&mut self, mode: AddressingMode) {
-        todo!()
+        if mode == AddressingMode::Accumulator {
+            self.asl_accumulator();
+        } else {
+            let _ = self.asl_addr(mode);
+        }
+    }
+
+    pub fn asl_accumulator(&mut self) {
+        let mut data = self.register_a;
+
+        if data >> 7 == 1 {
+            self.status.insert(CpuFlags::CARRY);
+        } else {
+            self.status.remove(CpuFlags::CARRY);
+        }
+
+        data <<= 1;
+        self.register_a = data;
+        self.update_zero_and_negative_flags(data);
+    }
+
+    pub fn asl_addr(&mut self, mode: AddressingMode) -> u8 {
+        let addr = self.get_operand_address(mode);
+        let mut data = self.mem_read(addr);
+
+        if data >> 7 == 1 {
+            self.status.insert(CpuFlags::CARRY);
+        } else {
+            self.status.remove(CpuFlags::CARRY);
+        }
+
+        data <<= 1;
+        self.mem_write(addr, data);
+        self.update_zero_and_negative_flags(data);
+        data
     }
 
     /// BCC - Branch if Carry Clear
