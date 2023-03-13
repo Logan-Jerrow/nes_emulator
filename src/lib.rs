@@ -16,9 +16,9 @@
     clippy::missing_errors_doc
 )]
 
-pub mod acl; // Arithmetic Logic Unit
-pub mod architecture;
-pub mod memory;
+mod addressing_mode;
+pub mod cpu;
+mod opcode;
 
 /*
     Central Processing Unit (CPU)
@@ -28,10 +28,11 @@ pub mod memory;
     Gamepads
 */
 
-pub mod apu; // Audio Processing Unit (APU)
-pub mod bus;
-pub mod cpu;
-pub mod gamepad;
-mod opcode;
-pub mod ppu;
-pub mod rom;
+// pub mod acl; // Arithmetic Logic Unit
+// pub mod architecture;
+// pub mod memory;
+// pub mod apu; // Audio Processing Unit (APU)
+// pub mod bus;
+// pub mod gamepad;
+// pub mod ppu;
+// pub mod rom;
