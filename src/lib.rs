@@ -1,14 +1,15 @@
 #![warn(
-    clippy::all,
+    clippy::cargo,
     clippy::complexity,
     clippy::correctness,
+    clippy::nursery,
+    clippy::pedantic,
     clippy::perf,
     clippy::style,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::unwrap_used,
-    clippy::expect_used
+    clippy::suspicious
 )]
+// clippy::restriction
+#![warn(clippy::unwrap_used, clippy::expect_used)]
 #![allow(
     dead_code,
     unused,
