@@ -55,7 +55,7 @@ impl CPU {
         }
     }
 
-    pub fn asl_accumulator(&mut self) {
+    fn asl_accumulator(&mut self) {
         let mut data = self.register_a;
 
         if data >> 7 == 1 {
@@ -69,7 +69,7 @@ impl CPU {
         self.update_zero_and_negative_flags(data);
     }
 
-    pub fn asl_addr(&mut self, mode: AddressingMode) -> u8 {
+    fn asl_addr(&mut self, mode: AddressingMode) -> u8 {
         let addr = self.get_operand_address(mode);
         let mut data = self.mem_read(addr);
 
