@@ -37,10 +37,8 @@ impl CPU {
     /// AND - Logical AND
     pub fn and(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
-        let value = self.mem_read(addr);
-
-        self.register_a &= value;
-        self.update_zero_and_negative_flags(self.register_a);
+        let data = self.mem_read(addr);
+        self.set_accumulator(self.register_a & data);
     }
 
     /// ASL - Arithmetic Shift Left
@@ -58,30 +56,18 @@ impl CPU {
     fn asl_accumulator(&mut self) {
         let mut data = self.register_a;
 
-        if data >> 7 == 1 {
-            self.status.insert(CpuFlags::CARRY);
-        } else {
-            self.status.remove(CpuFlags::CARRY);
-        }
+        self.msb_to_carry_flag(data);
 
-        data <<= 1;
-        self.register_a = data;
-        self.update_zero_and_negative_flags(data);
+        self.set_accumulator(data << 1);
     }
 
     fn asl_addr(&mut self, mode: AddressingMode) -> u8 {
         let addr = self.get_operand_address(mode);
         let mut data = self.mem_read(addr);
 
-        if data >> 7 == 1 {
-            self.status.insert(CpuFlags::CARRY);
-        } else {
-            self.status.remove(CpuFlags::CARRY);
-        }
+        self.msb_to_carry_flag(data);
 
-        data <<= 1;
-        self.mem_write(addr, data);
-        self.update_zero_and_negative_flags(data);
+        self.set_mem(addr, data << 1);
         data
     }
 
@@ -89,6 +75,27 @@ impl CPU {
     /// BCS - Branch if Carry Set
     /// BEQ - Branch if Equal
     /// BIT - Bit Test
+    pub fn bit(&mut self, mode: AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let data = self.mem_read(addr);
+
+        let result = self.register_a & data;
+        self.update_zero_flag(result);
+
+        if result >> 6 == 1 {
+            self.status.insert(CpuFlags::OVERFLOW);
+        }
+
+        if result >> 7 == 1 {
+            self.status.insert(CpuFlags::NEGATIV);
+        }
+
+        self.status
+            .set(CpuFlags::OVERFLOW, data & CpuFlags::OVERFLOW.bits() > 0);
+        self.status
+            .set(CpuFlags::NEGATIV, data & CpuFlags::NEGATIV.bits() > 0);
+    }
+
     /// BMI - Branch if Minus
     /// BNE - Branch if Not Equal
     /// BPL - Branch if Positive
@@ -96,17 +103,61 @@ impl CPU {
     /// BVC - Branch if Overflow Clear
     /// BVS - Branch if Overflow Set
     /// CLC - Clear Carry Flag
+    pub fn clc(&mut self) {
+        self.status.remove(CpuFlags::CARRY);
+    }
+
     /// CLD - Clear Decimal Mode
+    pub fn cld(&mut self) {
+        self.status.remove(CpuFlags::DECIMAL_MODE);
+    }
+
     /// CLI - Clear Interrupt Disable
+    pub fn cli(&mut self) {
+        self.status.remove(CpuFlags::INTERUPT_DISABLE);
+    }
+
     /// CLV - Clear Overflow Flag
+    pub fn clv(&mut self) {
+        self.status.remove(CpuFlags::OVERFLOW);
+    }
+
     /// CMP - Compare
     /// CPX - Compare X Register
     /// CPY - Compare Y Register
     /// DEC - Decrement Memory
+    pub fn dec(&mut self, mode: AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let mut data = self.mem_read(addr);
+        self.set_mem(addr, data.wrapping_sub(1));
+    }
+
     /// DEX - Decrement X Register
+    pub fn dex(&mut self, mode: AddressingMode) {
+        self.register_x = self.register_x.wrapping_sub(1);
+        self.update_zero_and_negative_flags(self.register_x);
+    }
+
     /// DEY - Decrement Y Register
+    pub fn dey(&mut self, mode: AddressingMode) {
+        self.register_y = self.register_y.wrapping_sub(1);
+        self.update_zero_and_negative_flags(self.register_y);
+    }
+
     /// EOR - Exclusive OR
+    pub fn eor(&mut self, mode: AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let mut data = self.mem_read(addr);
+        self.set_accumulator(self.register_a ^ data);
+    }
+
     /// INC - Increment Memory
+    pub fn inc(&mut self, mode: AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let mut data = self.mem_read(addr);
+        self.set_mem(addr, data.wrapping_add(1));
+    }
+
     /// INX - Increment X Register
     pub fn inx(&mut self) {
         self.register_x = self.register_x.wrapping_add(1);
@@ -161,8 +212,20 @@ impl CPU {
     /// RTS - Return from Subroutine
     /// SBC - Subtract with Carry
     /// SEC - Set Carry Flag
+    pub fn sec(&mut self) {
+        self.status.insert(CpuFlags::CARRY);
+    }
+
     /// SED - Set Decimal Flag
+    pub fn sed(&mut self) {
+        self.status.insert(CpuFlags::DECIMAL_MODE);
+    }
+
     /// SEI - Set Interrupt Disable
+    pub fn sei(&mut self) {
+        self.status.insert(CpuFlags::INTERUPT_DISABLE);
+    }
+
     /// STA - Store Accumulator
     pub fn sta(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);

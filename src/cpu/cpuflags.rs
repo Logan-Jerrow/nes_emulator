@@ -2,7 +2,7 @@ use bitflags::bitflags;
 
 impl Default for CpuFlags {
     fn default() -> Self {
-        Self::INIT
+        Self::BREAK2 | Self::INTERUPT_DISABLE
     }
 }
 
@@ -27,6 +27,7 @@ bitflags! {
     ///  | +--------------- Overflow Flag
     ///  +----------------- Negative Flag
     ///
+    // #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct CpuFlags: u8{
         const CARRY             = 0b0000_0001;
         const ZERO              = 0b0000_0010;
@@ -36,7 +37,5 @@ bitflags! {
         const BREAK2            = 0b0010_0000;
         const OVERFLOW          = 0b0100_0000;
         const NEGATIV           = 0b1000_0000;
-
-        const INIT = Self::BREAK2.bits | Self::CARRY.bits;
     }
 }

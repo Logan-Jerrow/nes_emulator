@@ -20,14 +20,17 @@
 
 // Index Register Y (Y) - similar use cases as register X.
 
+use std::ops::BitAnd;
+
 use self::cpuflags::CpuFlags;
 use self::memory::Memory;
 use crate::addressing_mode::AddressingMode;
 use crate::opcode::{mnemonic::Mnemonic, OpCode};
 
+pub mod memory;
+
 mod cpuflags;
 mod instructions;
-mod memory;
 
 #[derive(Debug)]
 pub struct CPU {
@@ -89,25 +92,31 @@ impl CPU {
     // time the first program instruction is executed S is $FD (0 minus 3).
     const STACK_RESET: u8 = 0xfd; // 0 - 3 = 0xfd (Wrapping!)
 
+    fn set_accumulator(&mut self, data: u8) {
+        self.register_a = data;
+        self.update_zero_and_negative_flags(data);
+    }
+
+    fn set_mem(&mut self, addr: u16, data: u8) {
+        self.mem_write(addr, data);
+        self.update_zero_and_negative_flags(data);
+    }
+
     fn update_zero_and_negative_flags(&mut self, result: u8) {
         self.update_zero_flag(result);
         self.update_negative_flag(result);
     }
 
     fn update_zero_flag(&mut self, result: u8) {
-        if result == 0 {
-            self.status.insert(CpuFlags::ZERO);
-        } else {
-            self.status.remove(CpuFlags::ZERO);
-        }
+        self.status.set(CpuFlags::ZERO, result == 0);
     }
 
     fn update_negative_flag(&mut self, result: u8) {
-        if result >> 7 == 1 {
-            self.status.insert(CpuFlags::NEGATIV);
-        } else {
-            self.status.remove(CpuFlags::NEGATIV);
-        }
+        self.status.set(CpuFlags::NEGATIV, result >> 7 == 1);
+    }
+
+    fn msb_to_carry_flag(&mut self, value: u8) {
+        self.status.set(CpuFlags::CARRY, value >> 7 == 1);
     }
 
     pub fn reset(&mut self) {
@@ -176,7 +185,16 @@ impl CPU {
     }
 
     pub fn run(&mut self) {
+        self.run_with_callback(|_| {});
+    }
+
+    pub fn run_with_callback<F>(&mut self, mut callback: F)
+    where
+        F: FnMut(&mut Self),
+    {
         loop {
+            callback(self);
+
             let raw_opcode = self.mem_read(self.program_counter);
             self.program_counter += 1;
             let program_counter_state = self.program_counter;
@@ -301,5 +319,13 @@ mod tests {
         cpu.load_and_run(&[0xA9, 0xFF, 0xAA, 0xE8, 0xE8, 0x00]);
 
         assert_eq!(cpu.register_x, 1);
+    }
+
+    #[test]
+    fn msb_carry() {
+        let mut cpu = CPU::default();
+        assert!(!cpu.status.contains(CpuFlags::CARRY));
+        cpu.msb_to_carry_flag(0b1000_0000);
+        assert!(cpu.status.contains(CpuFlags::CARRY));
     }
 }
