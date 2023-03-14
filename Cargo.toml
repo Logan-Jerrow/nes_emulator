@@ -4,6 +4,8 @@ description = "A nes emulator following the tutorial 'https://bugzmanov.github.i
 license-file = "LICENSE.md"
 repository = "https://github.com/Logan-Jerrow/nes_emulator"
 readme = "README.md"
+keywords = ["NES", "Emulator", "6502"]
+categories = ["emulators"]
 version = "0.1.0"
 edition = "2021"
 
