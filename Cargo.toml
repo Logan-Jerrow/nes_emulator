@@ -1,7 +1,9 @@
 [package]
 name = "nes_emulator"
 description = "A nes emulator following the tutorial 'https://bugzmanov.github.io/nes_ebook/chapter_1.html'"
-license-file = "LICENSE"
+license-file = "LICENSE.md"
+repository = "https://github.com/Logan-Jerrow/nes_emulator"
+readme = "README.md"
 version = "0.1.0"
 edition = "2021"
 

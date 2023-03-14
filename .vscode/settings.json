@@ -2,6 +2,7 @@
     "conventionalCommits.scopes": [
         "cpu",
         "opcodes",
-        "instructions"
+        "instructions",
+        "cargo"
     ]
 }
