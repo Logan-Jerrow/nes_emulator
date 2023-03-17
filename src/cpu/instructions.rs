@@ -65,7 +65,13 @@ impl CPU {
     /// BCC - Branch if Carry Clear
     /// BCS - Branch if Carry Set
     /// BEQ - Branch if Equal
+
     /// BIT - Bit Test
+    ///
+    /// This instructions is used to test if one or more bits are set in a target memory location.
+    /// The mask pattern in A is AND with the value in memory to set or clear the zero flag, but
+    /// the result is not kept. Bits 7 and 6 of the value from memory are copied into the N and V
+    /// flags.
     pub fn bit(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_data(mode);
 
@@ -180,7 +186,13 @@ impl CPU {
 
     /// LSR - Logical Shift Right
     /// NOP - No Operation
+    pub const fn nop() {}
     /// ORA - Logical Inclusive OR
+    pub fn ora(&mut self, mode: AddressingMode) {
+        let (addr, data) = self.get_data(mode);
+        self.set_accumulator(self.register_a | data);
+    }
+
     /// PHA - Push Accumulator
     /// PHP - Push Processor Status
     /// PLA - Pull Accumulator
