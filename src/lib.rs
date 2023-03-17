@@ -14,7 +14,8 @@
     dead_code,
     unused,
     clippy::missing_panics_doc,
-    clippy::missing_errors_doc
+    clippy::missing_errors_doc,
+    clippy::multiple_crate_versions
 )]
 
 mod addressing_mode;
@@ -28,12 +29,3 @@ mod opcode;
     Cartridges
     Gamepads
 */
-
-// pub mod acl; // Arithmetic Logic Unit
-// pub mod architecture;
-// pub mod memory;
-// pub mod apu; // Audio Processing Unit (APU)
-// pub mod bus;
-// pub mod gamepad;
-// pub mod ppu;
-// pub mod rom;

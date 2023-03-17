@@ -4,40 +4,31 @@ impl CPU {
     /// ADC - Add with Carry
     #[allow(clippy::cast_possible_truncation)]
     pub fn adc(&mut self, mode: AddressingMode) {
-        let addr = self.get_operand_address(mode);
-        let value = self.mem_read(addr);
+        let (addr, data) = self.get_data(mode);
 
         // convert u8 to u16 for easy carry bit logic
         let sum: u16 = u16::from(self.register_a)
-            + u16::from(value) // add accmulator and value together; no worry if overflow because both are u8s
-            + u16::from(self.status.contains(CpuFlags::CARRY)); // Add 1 carry bit was set
+            + u16::from(data) // add accmulator and value together; no worry if overflow because both are u8s
+            + u16::from(self.status.contains(CpuFlags::CARRY)); // Add 1 if carry bit was set
 
-        // Should carry bit be set/removed
-        if (sum > 0xFF) {
-            self.status.insert(CpuFlags::CARRY);
-        } else {
-            self.status.remove(CpuFlags::CARRY);
-        }
+        self.status.set(CpuFlags::CARRY, sum > u8::MAX.into());
 
         // Truncate sum
-        let result: u8 = sum as u8;
+        // let result: u8 = sum as u8;
+        let [result, _]: [u8; 2] = sum.to_le_bytes(); // no 'as' keyword
 
         // testing if sign bit is incorrect... somhow?
         // 0x80 is 1<<7 (0b1000_0000) aka is neg bit set?
-        if (result ^ value) & (result ^ self.register_a) & 0x80 == 0 {
-            self.status.remove(CpuFlags::OVERFLOW);
-        } else {
-            self.status.insert(CpuFlags::OVERFLOW);
-        }
+        let msb = 1 << 7;
+        let pred = (result ^ data) & (result ^ self.register_a) & msb != 0;
+        self.status.set(CpuFlags::OVERFLOW, pred);
 
-        self.register_a = result;
-        self.update_zero_and_negative_flags(result);
+        self.set_accumulator(result);
     }
 
     /// AND - Logical AND
     pub fn and(&mut self, mode: AddressingMode) {
-        let addr = self.get_operand_address(mode);
-        let data = self.mem_read(addr);
+        let (addr, data) = self.get_data(mode);
         self.set_accumulator(self.register_a & data);
     }
 
@@ -62,12 +53,12 @@ impl CPU {
     }
 
     fn asl_addr(&mut self, mode: AddressingMode) -> u8 {
-        let addr = self.get_operand_address(mode);
-        let mut data = self.mem_read(addr);
+        let (addr, mut data) = self.get_data(mode);
 
         self.msb_to_carry_flag(data);
 
-        self.set_mem(addr, data << 1);
+        data <<= 1;
+        self.set_mem(addr, data);
         data
     }
 
@@ -76,19 +67,10 @@ impl CPU {
     /// BEQ - Branch if Equal
     /// BIT - Bit Test
     pub fn bit(&mut self, mode: AddressingMode) {
-        let addr = self.get_operand_address(mode);
-        let data = self.mem_read(addr);
+        let (addr, data) = self.get_data(mode);
 
         let result = self.register_a & data;
         self.update_zero_flag(result);
-
-        if result >> 6 == 1 {
-            self.status.insert(CpuFlags::OVERFLOW);
-        }
-
-        if result >> 7 == 1 {
-            self.status.insert(CpuFlags::NEGATIV);
-        }
 
         self.status
             .set(CpuFlags::OVERFLOW, data & CpuFlags::OVERFLOW.bits() > 0);
@@ -127,8 +109,7 @@ impl CPU {
     /// CPY - Compare Y Register
     /// DEC - Decrement Memory
     pub fn dec(&mut self, mode: AddressingMode) {
-        let addr = self.get_operand_address(mode);
-        let mut data = self.mem_read(addr);
+        let (addr, data) = self.get_data(mode);
         self.set_mem(addr, data.wrapping_sub(1));
     }
 
@@ -146,15 +127,13 @@ impl CPU {
 
     /// EOR - Exclusive OR
     pub fn eor(&mut self, mode: AddressingMode) {
-        let addr = self.get_operand_address(mode);
-        let mut data = self.mem_read(addr);
+        let (addr, data) = self.get_data(mode);
         self.set_accumulator(self.register_a ^ data);
     }
 
     /// INC - Increment Memory
     pub fn inc(&mut self, mode: AddressingMode) {
-        let addr = self.get_operand_address(mode);
-        let mut data = self.mem_read(addr);
+        let (addr, data) = self.get_data(mode);
         self.set_mem(addr, data.wrapping_add(1));
     }
 
@@ -172,30 +151,30 @@ impl CPU {
 
     /// JMP - Jump
     /// JSR - Jump to Subroutine
+    pub fn jsr(&mut self) {
+        todo!()
+    }
     /// LDA - Load Accumulator
     pub fn lda(&mut self, mode: AddressingMode) {
-        let addr = self.get_operand_address(mode);
-        let value = self.mem_read(addr);
+        let (addr, data) = self.get_data(mode);
 
-        self.register_a = value;
+        self.register_a = data;
         self.update_zero_and_negative_flags(self.register_a);
     }
 
     /// LDX - Load X Register
     pub fn ldx(&mut self, mode: AddressingMode) {
-        let addr = self.get_operand_address(mode);
-        let value = self.mem_read(addr);
+        let (addr, data) = self.get_data(mode);
 
-        self.register_x = value;
+        self.register_x = data;
         self.update_zero_and_negative_flags(self.register_x);
     }
 
     /// LDY - Load Y Register
     pub fn ldy(&mut self, mode: AddressingMode) {
-        let addr = self.get_operand_address(mode);
-        let value = self.mem_read(addr);
+        let (addr, data) = self.get_data(mode);
 
-        self.register_y = value;
+        self.register_y = data;
         self.update_zero_and_negative_flags(self.register_y);
     }
 

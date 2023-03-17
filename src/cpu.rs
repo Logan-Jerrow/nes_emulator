@@ -20,26 +20,26 @@
 
 // Index Register Y (Y) - similar use cases as register X.
 
-use std::ops::BitAnd;
-
-use self::cpuflags::CpuFlags;
-use self::memory::Memory;
-use crate::addressing_mode::AddressingMode;
-use crate::opcode::{mnemonic::Mnemonic, OpCode};
+use self::{cpuflags::CpuFlags, memory::Memory};
+use crate::{
+    addressing_mode::AddressingMode,
+    opcode::{self, mnemonic::Mnemonic, OpCode},
+};
 
 pub mod memory;
 
 mod cpuflags;
 mod instructions;
+mod opcode_array;
 
 #[derive(Debug)]
 pub struct CPU {
-    pub register_a: u8,
-    pub register_x: u8,
-    pub register_y: u8,
-    pub status: CpuFlags,
-    pub program_counter: u16,
-    pub stack_ptr: u8,
+    register_a: u8,
+    register_x: u8,
+    register_y: u8,
+    status: CpuFlags,
+    program_counter: u16,
+    stack_ptr: u8,
     memory: [u8; 0xFFFF],
 }
 
@@ -92,6 +92,13 @@ impl CPU {
     // time the first program instruction is executed S is $FD (0 minus 3).
     const STACK_RESET: u8 = 0xfd; // 0 - 3 = 0xfd (Wrapping!)
 
+    fn get_data(&mut self, mode: AddressingMode) -> (u16, u8) {
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+
+        (addr, value)
+    }
+
     fn set_accumulator(&mut self, data: u8) {
         self.register_a = data;
         self.update_zero_and_negative_flags(data);
@@ -119,12 +126,20 @@ impl CPU {
         self.status.set(CpuFlags::CARRY, value >> 7 == 1);
     }
 
+    #[must_use]
+    pub fn decode(&self, raw: opcode::Raw) -> OpCode {
+        opcode_array::INSTRUCTIONS[usize::from(raw)]
+            .unwrap_or_else(|| panic!("OpCode {raw:#04x} is not recognized."))
+    }
+
     pub fn reset(&mut self) {
-        *self = Self {
-            program_counter: self.mem_read_u16(Self::PRG_ROM_EXEC_ADDR),
-            memory: self.memory,
-            ..Default::default()
-        };
+        self.register_a = 0;
+        self.register_x = 0;
+        self.register_y = 0;
+        self.program_counter = self.mem_read_u16(Self::PRG_ROM_EXEC_ADDR);
+        self.stack_ptr = Self::STACK_RESET;
+        self.status = CpuFlags::default();
+        // memory: [0; 0xFFFF],
     }
 
     pub fn load_and_run(&mut self, program: &[u8]) {
@@ -199,7 +214,7 @@ impl CPU {
             self.program_counter += 1;
             let program_counter_state = self.program_counter;
 
-            let opcode = OpCode::decode(raw_opcode);
+            let opcode = self.decode(raw_opcode);
             match opcode.mnemonic {
                 Mnemonic::Adc => self.adc(opcode.mode),
                 Mnemonic::And => self.and(opcode.mode),

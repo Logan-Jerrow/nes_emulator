@@ -27,7 +27,7 @@ bitflags! {
     ///  | +--------------- Overflow Flag
     ///  +----------------- Negative Flag
     ///
-    // #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub struct CpuFlags: u8{
         const CARRY             = 0b0000_0001;
         const ZERO              = 0b0000_0010;
