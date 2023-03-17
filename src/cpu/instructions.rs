@@ -63,8 +63,22 @@ impl CPU {
     }
 
     /// BCC - Branch if Carry Clear
+    ///
+    /// If the carry flag is clear then add the relative displacement to the program counter to
+    /// cause a branch to a new location.
+    pub fn bcc(&mut self) {
+        self.branch(!self.status.contains(CpuFlags::CARRY));
+    }
+
     /// BCS - Branch if Carry Set
+    pub fn bcs(&mut self) {
+        self.branch(self.status.contains(CpuFlags::CARRY));
+    }
+
     /// BEQ - Branch if Equal
+    pub fn beq(&mut self) {
+        self.branch(self.status.contains(CpuFlags::ZERO));
+    }
 
     /// BIT - Bit Test
     ///
@@ -85,11 +99,31 @@ impl CPU {
     }
 
     /// BMI - Branch if Minus
+    pub fn bmi(&mut self) {
+        self.branch(self.status.contains(CpuFlags::NEGATIV));
+    }
+
     /// BNE - Branch if Not Equal
+    pub fn bne(&mut self) {
+        self.branch(!self.status.contains(CpuFlags::ZERO));
+    }
+
     /// BPL - Branch if Positive
+    pub fn bpl(&mut self) {
+        self.branch(!self.status.contains(CpuFlags::NEGATIV));
+    }
+
     /// BRK - Force Interrupt
     /// BVC - Branch if Overflow Clear
+    pub fn bvc(&mut self) {
+        self.branch(!self.status.contains(CpuFlags::OVERFLOW));
+    }
+
     /// BVS - Branch if Overflow Set
+    pub fn bvs(&mut self) {
+        self.branch(self.status.contains(CpuFlags::OVERFLOW));
+    }
+
     /// CLC - Clear Carry Flag
     pub fn clc(&mut self) {
         self.status.remove(CpuFlags::CARRY);

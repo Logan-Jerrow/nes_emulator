@@ -131,6 +131,18 @@ impl CPU {
         self.status.set(CpuFlags::CARRY, value & 1 == 1);
     }
 
+    #[allow(clippy::cast_lossless)]
+    fn branch(&mut self, condition: bool) {
+        if condition {
+            let jump = self.mem_read(self.program_counter) as i16;
+            self.program_counter = self
+                .program_counter
+                // program counter increment durring instruction execution
+                .wrapping_add(1)
+                .wrapping_add_signed(jump);
+        }
+    }
+
     #[must_use]
     pub fn decode(&self, raw: opcode::Raw) -> OpCode {
         opcode_array::INSTRUCTIONS[usize::from(raw)]
@@ -224,16 +236,16 @@ impl CPU {
                 Mnemonic::Adc => self.adc(opcode.mode),
                 Mnemonic::And => self.and(opcode.mode),
                 Mnemonic::Asl => self.asl(opcode.mode),
-                Mnemonic::Bcc => todo!(),
-                Mnemonic::Bcs => todo!(),
-                Mnemonic::Beq => todo!(),
+                Mnemonic::Bcc => self.bcc(),
+                Mnemonic::Bcs => self.bcs(),
+                Mnemonic::Beq => self.beq(),
                 Mnemonic::Bit => self.bit(opcode.mode),
-                Mnemonic::Bmi => todo!(),
-                Mnemonic::Bne => todo!(),
-                Mnemonic::Bpl => todo!(),
+                Mnemonic::Bmi => self.bmi(),
+                Mnemonic::Bne => self.bne(),
+                Mnemonic::Bpl => self.bpl(),
                 Mnemonic::Brk => return,
-                Mnemonic::Bvc => todo!(),
-                Mnemonic::Bvs => todo!(),
+                Mnemonic::Bvc => self.bvc(),
+                Mnemonic::Bvs => self.bvs(),
                 Mnemonic::Clc => self.clc(),
                 Mnemonic::Cld => self.cld(),
                 Mnemonic::Cli => self.cli(),
