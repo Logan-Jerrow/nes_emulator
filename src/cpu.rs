@@ -122,8 +122,13 @@ impl CPU {
         self.status.set(CpuFlags::NEGATIV, result >> 7 == 1);
     }
 
+    /// msb = bit 7 for u8
     fn msb_to_carry_flag(&mut self, value: u8) {
         self.status.set(CpuFlags::CARRY, value >> 7 == 1);
+    }
+
+    fn lsb_to_carry_flag(&mut self, value: u8) {
+        self.status.set(CpuFlags::CARRY, value & 1 == 1);
     }
 
     #[must_use]
@@ -248,7 +253,7 @@ impl CPU {
                 Mnemonic::Lda => self.lda(opcode.mode),
                 Mnemonic::Ldx => self.ldx(opcode.mode),
                 Mnemonic::Ldy => self.ldy(opcode.mode),
-                Mnemonic::Lsr => todo!(),
+                Mnemonic::Lsr => self.lsr(opcode.mode),
                 Mnemonic::Nop => (),
                 Mnemonic::Ora => self.ora(opcode.mode),
                 Mnemonic::Pha => todo!(),

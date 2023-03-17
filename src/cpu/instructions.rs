@@ -185,6 +185,32 @@ impl CPU {
     }
 
     /// LSR - Logical Shift Right
+    pub fn lsr(&mut self, mode: AddressingMode) {
+        if mode == AddressingMode::Accumulator {
+            self.lsr_accumulator();
+        } else {
+            let _ = self.lsr_addr(mode);
+        }
+    }
+
+    fn lsr_accumulator(&mut self) {
+        let mut data = self.register_a;
+
+        self.lsb_to_carry_flag(data);
+
+        self.set_accumulator(data >> 1);
+    }
+
+    fn lsr_addr(&mut self, mode: AddressingMode) -> u8 {
+        let (addr, mut data) = self.get_data(mode);
+
+        self.lsb_to_carry_flag(data);
+
+        data >>= 1;
+        self.set_mem(addr, data);
+        data
+    }
+
     /// NOP - No Operation
     pub const fn nop() {}
     /// ORA - Logical Inclusive OR
