@@ -70,11 +70,11 @@ impl Memory for CPU {
 impl CPU {
     // [0x8000 .. 0xFFFF] Program ROM (PRG ROM)
     const PRG_ROM_START_ADDR: u16 = 0x8000;
-    const PRG_ROM_EXEC_ADDR: u16 = 0xfffc;
+    const PRG_ROM_EXEC_ADDR: u16 = 0xFFFC;
 
     // Stack Pointer - Memory space [0x0100 .. 0x01FF] is used for stack.
-    const STACK_MEMORY_START: u16 = 0x0100;
-    const STACK_MEMORY_END: u16 = 0x01ff;
+    const STACK_START: u16 = 0x0100;
+    const STACK_MEMORY_END: u16 = 0x01FF;
 
     // https://archive.nes.science/nesdev-forums/f3/t715.xhtml#p7591
     // by WedNESday on 2005-12-21 (#7591)
@@ -90,9 +90,9 @@ impl CPU {
     //
     // It started at zero. As part of the reset process the CPU decremented S three times. By the
     // time the first program instruction is executed S is $FD (0 minus 3).
-    const STACK_RESET: u8 = 0xfd; // 0 - 3 = 0xfd (Wrapping!)
+    const STACK_RESET: u8 = 0xFD; // 0 - 3 = 0xfd (Wrapping!)
 
-    fn get_data(&mut self, mode: AddressingMode) -> (u16, u8) {
+    fn get_memory(&mut self, mode: AddressingMode) -> (u16, u8) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
 
@@ -143,6 +143,39 @@ impl CPU {
         }
     }
 
+    fn compare(&mut self, mode: AddressingMode, with: u8) {
+        let (addr, data) = self.get_memory(mode);
+        self.status.set(CpuFlags::CARRY, with >= data);
+        self.update_zero_and_negative_flags(with.wrapping_sub(data));
+    }
+
+    fn stack_pop(&mut self) -> u8 {
+        self.stack_ptr = self.stack_ptr.wrapping_add(1);
+        self.mem_read(Self::STACK_START + u16::from(self.stack_ptr))
+    }
+
+    fn stack_push(&mut self, data: u8) {
+        self.mem_write(Self::STACK_START + u16::from(self.stack_ptr), data);
+        self.stack_ptr = self.stack_ptr.wrapping_sub(1);
+    }
+
+    fn stack_pop_u16(&mut self) -> u16 {
+        let low = self.stack_pop();
+        let high = self.stack_pop();
+        u16::from_le_bytes([low, high])
+    }
+
+    fn stack_push_u16(&mut self, data: u16) {
+        let [low, high] = data.to_le_bytes();
+        let hi = (data >> 8) as u8;
+        let lo = (data & 0xff) as u8;
+        assert_eq!(lo, low);
+        assert_eq!(hi, high);
+
+        self.stack_push(high);
+        self.stack_push(low);
+    }
+
     #[must_use]
     pub fn decode(&self, raw: opcode::Raw) -> OpCode {
         opcode_array::INSTRUCTIONS[usize::from(raw)]
@@ -153,10 +186,11 @@ impl CPU {
         self.register_a = 0;
         self.register_x = 0;
         self.register_y = 0;
-        self.program_counter = self.mem_read_u16(Self::PRG_ROM_EXEC_ADDR);
         self.stack_ptr = Self::STACK_RESET;
         self.status = CpuFlags::default();
         // memory: [0; 0xFFFF],
+
+        self.program_counter = self.mem_read_u16(Self::PRG_ROM_EXEC_ADDR);
     }
 
     pub fn load_and_run(&mut self, program: &[u8]) {
@@ -250,18 +284,18 @@ impl CPU {
                 Mnemonic::Cld => self.cld(),
                 Mnemonic::Cli => self.cli(),
                 Mnemonic::Clv => self.clv(),
-                Mnemonic::Cmp => todo!(),
-                Mnemonic::Cpx => todo!(),
-                Mnemonic::Cpy => todo!(),
+                Mnemonic::Cmp => self.compare(opcode.mode, self.register_a),
+                Mnemonic::Cpx => self.compare(opcode.mode, self.register_x),
+                Mnemonic::Cpy => self.compare(opcode.mode, self.register_y),
                 Mnemonic::Dec => self.dec(opcode.mode),
                 Mnemonic::Dex => self.dex(opcode.mode),
                 Mnemonic::Dey => self.dey(opcode.mode),
                 Mnemonic::Eor => self.eor(opcode.mode),
-                Mnemonic::Inc => todo!(),
+                Mnemonic::Inc => self.inc(opcode.mode),
                 Mnemonic::Inx => self.inx(),
                 Mnemonic::Iny => self.iny(),
-                Mnemonic::Jmp => todo!(),
-                Mnemonic::Jsr => todo!(),
+                Mnemonic::Jmp => self.jmp(opcode.mode),
+                Mnemonic::Jsr => self.jsr(),
                 Mnemonic::Lda => self.lda(opcode.mode),
                 Mnemonic::Ldx => self.ldx(opcode.mode),
                 Mnemonic::Ldy => self.ldy(opcode.mode),

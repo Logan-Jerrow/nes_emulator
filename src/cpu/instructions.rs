@@ -4,7 +4,7 @@ impl CPU {
     /// ADC - Add with Carry
     #[allow(clippy::cast_possible_truncation)]
     pub fn adc(&mut self, mode: AddressingMode) {
-        let (addr, data) = self.get_data(mode);
+        let (addr, data) = self.get_memory(mode);
 
         // convert u8 to u16 for easy carry bit logic
         let sum: u16 = u16::from(self.register_a)
@@ -28,7 +28,7 @@ impl CPU {
 
     /// AND - Logical AND
     pub fn and(&mut self, mode: AddressingMode) {
-        let (addr, data) = self.get_data(mode);
+        let (addr, data) = self.get_memory(mode);
         self.set_accumulator(self.register_a & data);
     }
 
@@ -53,7 +53,7 @@ impl CPU {
     }
 
     fn asl_addr(&mut self, mode: AddressingMode) -> u8 {
-        let (addr, mut data) = self.get_data(mode);
+        let (addr, mut data) = self.get_memory(mode);
 
         self.msb_to_carry_flag(data);
 
@@ -87,7 +87,7 @@ impl CPU {
     /// the result is not kept. Bits 7 and 6 of the value from memory are copied into the N and V
     /// flags.
     pub fn bit(&mut self, mode: AddressingMode) {
-        let (addr, data) = self.get_data(mode);
+        let (addr, data) = self.get_memory(mode);
 
         let result = self.register_a & data;
         self.update_zero_flag(result);
@@ -144,12 +144,12 @@ impl CPU {
         self.status.remove(CpuFlags::OVERFLOW);
     }
 
-    /// CMP - Compare
-    /// CPX - Compare X Register
-    /// CPY - Compare Y Register
+    // CMP - Compare
+    // CPX - Compare X Register
+    // CPY - Compare Y Register
     /// DEC - Decrement Memory
     pub fn dec(&mut self, mode: AddressingMode) {
-        let (addr, data) = self.get_data(mode);
+        let (addr, data) = self.get_memory(mode);
         self.set_mem(addr, data.wrapping_sub(1));
     }
 
@@ -167,13 +167,13 @@ impl CPU {
 
     /// EOR - Exclusive OR
     pub fn eor(&mut self, mode: AddressingMode) {
-        let (addr, data) = self.get_data(mode);
+        let (addr, data) = self.get_memory(mode);
         self.set_accumulator(self.register_a ^ data);
     }
 
     /// INC - Increment Memory
     pub fn inc(&mut self, mode: AddressingMode) {
-        let (addr, data) = self.get_data(mode);
+        let (addr, data) = self.get_memory(mode);
         self.set_mem(addr, data.wrapping_add(1));
     }
 
@@ -190,13 +190,40 @@ impl CPU {
     }
 
     /// JMP - Jump
+    pub fn jmp(&mut self, mode: AddressingMode) {
+        if mode == AddressingMode::Absolute {
+            self.program_counter = self.mem_read_u16(self.program_counter);
+        }
+        if mode == AddressingMode::Indirect {
+            let addr = self.mem_read_u16(self.program_counter);
+            // An original 6502 has does not correctly fetch the target address if the indirect
+            // vector falls on a page boundary (e.g. $xxFF where xx is any value from $00 to $FF).
+            let is_page_boundary = addr & 0x00FF == 0x00FF;
+            let indirect_addr = if is_page_boundary {
+                // In this case fetches the LSB from $xxFF as expected
+                let low = self.mem_read(addr);
+                // but takes the MSB from $xx00.
+                let high = self.mem_read(addr & 0xFF00);
+                u16::from_le_bytes([low, high])
+            } else {
+                self.mem_read_u16(addr)
+            };
+
+            self.program_counter = indirect_addr;
+        }
+    }
+
     /// JSR - Jump to Subroutine
+    /// The JSR instruction pushes the address (minus one) of the return point on to the stack and
+    /// then sets the program counter to the target memory address.
     pub fn jsr(&mut self) {
-        todo!()
+        self.stack_push_u16(self.program_counter + 2 - 1);
+        let target_addr = self.mem_read_u16(self.program_counter);
+        self.program_counter = target_addr;
     }
     /// LDA - Load Accumulator
     pub fn lda(&mut self, mode: AddressingMode) {
-        let (addr, data) = self.get_data(mode);
+        let (addr, data) = self.get_memory(mode);
 
         self.register_a = data;
         self.update_zero_and_negative_flags(self.register_a);
@@ -204,7 +231,7 @@ impl CPU {
 
     /// LDX - Load X Register
     pub fn ldx(&mut self, mode: AddressingMode) {
-        let (addr, data) = self.get_data(mode);
+        let (addr, data) = self.get_memory(mode);
 
         self.register_x = data;
         self.update_zero_and_negative_flags(self.register_x);
@@ -212,7 +239,7 @@ impl CPU {
 
     /// LDY - Load Y Register
     pub fn ldy(&mut self, mode: AddressingMode) {
-        let (addr, data) = self.get_data(mode);
+        let (addr, data) = self.get_memory(mode);
 
         self.register_y = data;
         self.update_zero_and_negative_flags(self.register_y);
@@ -236,7 +263,7 @@ impl CPU {
     }
 
     fn lsr_addr(&mut self, mode: AddressingMode) -> u8 {
-        let (addr, mut data) = self.get_data(mode);
+        let (addr, mut data) = self.get_memory(mode);
 
         self.lsb_to_carry_flag(data);
 
@@ -249,7 +276,7 @@ impl CPU {
     pub const fn nop() {}
     /// ORA - Logical Inclusive OR
     pub fn ora(&mut self, mode: AddressingMode) {
-        let (addr, data) = self.get_data(mode);
+        let (addr, data) = self.get_memory(mode);
         self.set_accumulator(self.register_a | data);
     }
 
