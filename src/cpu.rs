@@ -69,7 +69,7 @@ impl Memory for CPU {
 
 impl CPU {
     // [0x8000 .. 0xFFFF] Program ROM (PRG ROM)
-    const PRG_ROM_START_ADDR: u16 = 0x8000;
+    const PRG_ROM_START_ADDR: u16 = 0x0600;
     const PRG_ROM_EXEC_ADDR: u16 = 0xFFFC;
 
     // Stack Pointer - Memory space [0x0100 .. 0x01FF] is used for stack.
