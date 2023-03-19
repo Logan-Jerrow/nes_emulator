@@ -3,7 +3,7 @@ use super::{AddressingMode, CpuFlags, Memory, CPU};
 impl CPU {
     /// ADC - Add with Carry
     #[allow(clippy::cast_possible_truncation)]
-    pub(crate) fn adc(&mut self, mode: AddressingMode) {
+    pub(super) fn adc(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
 
         // convert u8 to u16 for easy carry bit logic
@@ -27,7 +27,7 @@ impl CPU {
     }
 
     /// AND - Logical AND
-    pub(crate) fn and(&mut self, mode: AddressingMode) {
+    pub(super) fn and(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
         self.set_accumulator(self.register_a & data);
     }
@@ -36,7 +36,7 @@ impl CPU {
     ///
     /// Shifts all bits left one position. 0 is shifted into bit 0 and the
     /// original bit 7 is shifted into the Carry.
-    pub(crate) fn asl(&mut self, mode: AddressingMode) {
+    pub(super) fn asl(&mut self, mode: AddressingMode) {
         if mode == AddressingMode::Accumulator {
             self.asl_accumulator();
         } else {
@@ -66,17 +66,17 @@ impl CPU {
     ///
     /// If the carry flag is clear then add the relative displacement to the program counter to
     /// cause a branch to a new location.
-    pub(crate) fn bcc(&mut self) {
+    pub(super) fn bcc(&mut self) {
         self.branch(!self.status.contains(CpuFlags::CARRY));
     }
 
     /// BCS - Branch if Carry Set
-    pub(crate) fn bcs(&mut self) {
+    pub(super) fn bcs(&mut self) {
         self.branch(self.status.contains(CpuFlags::CARRY));
     }
 
     /// BEQ - Branch if Equal
-    pub(crate) fn beq(&mut self) {
+    pub(super) fn beq(&mut self) {
         self.branch(self.status.contains(CpuFlags::ZERO));
     }
 
@@ -86,7 +86,7 @@ impl CPU {
     /// The mask pattern in A is AND with the value in memory to set or clear the zero flag, but
     /// the result is not kept. Bits 7 and 6 of the value from memory are copied into the N and V
     /// flags.
-    pub(crate) fn bit(&mut self, mode: AddressingMode) {
+    pub(super) fn bit(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
 
         let result = self.register_a & data;
@@ -99,48 +99,48 @@ impl CPU {
     }
 
     /// BMI - Branch if Minus
-    pub(crate) fn bmi(&mut self) {
+    pub(super) fn bmi(&mut self) {
         self.branch(self.status.contains(CpuFlags::NEGATIV));
     }
 
     /// BNE - Branch if Not Equal
-    pub(crate) fn bne(&mut self) {
+    pub(super) fn bne(&mut self) {
         self.branch(!self.status.contains(CpuFlags::ZERO));
     }
 
     /// BPL - Branch if Positive
-    pub(crate) fn bpl(&mut self) {
+    pub(super) fn bpl(&mut self) {
         self.branch(!self.status.contains(CpuFlags::NEGATIV));
     }
 
     /// BRK - Force Interrupt
     /// BVC - Branch if Overflow Clear
-    pub(crate) fn bvc(&mut self) {
+    pub(super) fn bvc(&mut self) {
         self.branch(!self.status.contains(CpuFlags::OVERFLOW));
     }
 
     /// BVS - Branch if Overflow Set
-    pub(crate) fn bvs(&mut self) {
+    pub(super) fn bvs(&mut self) {
         self.branch(self.status.contains(CpuFlags::OVERFLOW));
     }
 
     /// CLC - Clear Carry Flag
-    pub(crate) fn clc(&mut self) {
+    pub(super) fn clc(&mut self) {
         self.status.remove(CpuFlags::CARRY);
     }
 
     /// CLD - Clear Decimal Mode
-    pub(crate) fn cld(&mut self) {
+    pub(super) fn cld(&mut self) {
         self.status.remove(CpuFlags::DECIMAL_MODE);
     }
 
     /// CLI - Clear Interrupt Disable
-    pub(crate) fn cli(&mut self) {
+    pub(super) fn cli(&mut self) {
         self.status.remove(CpuFlags::INTERUPT_DISABLE);
     }
 
     /// CLV - Clear Overflow Flag
-    pub(crate) fn clv(&mut self) {
+    pub(super) fn clv(&mut self) {
         self.status.remove(CpuFlags::OVERFLOW);
     }
 
@@ -148,37 +148,37 @@ impl CPU {
     // CPX - Compare X Register
     // CPY - Compare Y Register
     /// DEC - Decrement Memory
-    pub(crate) fn dec(&mut self, mode: AddressingMode) {
+    pub(super) fn dec(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
         self.set_mem(addr, data.wrapping_sub(1));
     }
 
     /// DEX - Decrement X Register
-    pub(crate) fn dex(&mut self, mode: AddressingMode) {
+    pub(super) fn dex(&mut self, mode: AddressingMode) {
         self.register_x = self.register_x.wrapping_sub(1);
         self.update_zero_and_negative_flags(self.register_x);
     }
 
     /// DEY - Decrement Y Register
-    pub(crate) fn dey(&mut self, mode: AddressingMode) {
+    pub(super) fn dey(&mut self, mode: AddressingMode) {
         self.register_y = self.register_y.wrapping_sub(1);
         self.update_zero_and_negative_flags(self.register_y);
     }
 
     /// EOR - Exclusive OR
-    pub(crate) fn eor(&mut self, mode: AddressingMode) {
+    pub(super) fn eor(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
         self.set_accumulator(self.register_a ^ data);
     }
 
     /// INC - Increment Memory
-    pub(crate) fn inc(&mut self, mode: AddressingMode) {
+    pub(super) fn inc(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
         self.set_mem(addr, data.wrapping_add(1));
     }
 
     /// INX - Increment X Register
-    pub(crate) fn inx(&mut self) {
+    pub(super) fn inx(&mut self) {
         self.register_x = self.register_x.wrapping_add(1);
         self.update_zero_and_negative_flags(self.register_x);
     }
@@ -216,13 +216,13 @@ impl CPU {
     /// JSR - Jump to Subroutine
     /// The JSR instruction pushes the address (minus one) of the return point on to the stack and
     /// then sets the program counter to the target memory address.
-    pub(crate) fn jsr(&mut self) {
+    pub(super) fn jsr(&mut self) {
         self.stack_push_u16(self.program_counter + 2 - 1);
         let target_addr = self.mem_read_u16(self.program_counter);
         self.program_counter = target_addr;
     }
     /// LDA - Load Accumulator
-    pub(crate) fn lda(&mut self, mode: AddressingMode) {
+    pub(super) fn lda(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
 
         self.register_a = data;
@@ -230,7 +230,7 @@ impl CPU {
     }
 
     /// LDX - Load X Register
-    pub(crate) fn ldx(&mut self, mode: AddressingMode) {
+    pub(super) fn ldx(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
 
         self.register_x = data;
@@ -238,7 +238,7 @@ impl CPU {
     }
 
     /// LDY - Load Y Register
-    pub(crate) fn ldy(&mut self, mode: AddressingMode) {
+    pub(super) fn ldy(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
 
         self.register_y = data;
@@ -246,7 +246,7 @@ impl CPU {
     }
 
     /// LSR - Logical Shift Right
-    pub(crate) fn lsr(&mut self, mode: AddressingMode) {
+    pub(super) fn lsr(&mut self, mode: AddressingMode) {
         if mode == AddressingMode::Accumulator {
             self.lsr_accumulator();
         } else {
@@ -273,9 +273,9 @@ impl CPU {
     }
 
     /// NOP - No Operation
-    pub(crate) const fn nop() {}
+    pub(super) const fn nop() {}
     /// ORA - Logical Inclusive OR
-    pub(crate) fn ora(&mut self, mode: AddressingMode) {
+    pub(super) fn ora(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
         self.set_accumulator(self.register_a | data);
     }
@@ -290,60 +290,60 @@ impl CPU {
     /// RTS - Return from Subroutine
     /// SBC - Subtract with Carry
     /// SEC - Set Carry Flag
-    pub(crate) fn sec(&mut self) {
+    pub(super) fn sec(&mut self) {
         self.status.insert(CpuFlags::CARRY);
     }
 
     /// SED - Set Decimal Flag
-    pub(crate) fn sed(&mut self) {
+    pub(super) fn sed(&mut self) {
         self.status.insert(CpuFlags::DECIMAL_MODE);
     }
 
     /// SEI - Set Interrupt Disable
-    pub(crate) fn sei(&mut self) {
+    pub(super) fn sei(&mut self) {
         self.status.insert(CpuFlags::INTERUPT_DISABLE);
     }
 
     /// STA - Store Accumulator
-    pub(crate) fn sta(&mut self, mode: AddressingMode) {
+    pub(super) fn sta(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
         self.mem_write(addr, self.register_a);
     }
 
     /// STX - Store X Register
-    pub(crate) fn stx(&mut self, mode: AddressingMode) {
+    pub(super) fn stx(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
         self.mem_write(addr, self.register_x);
     }
 
     /// STY - Store Y Register
-    pub(crate) fn sty(&mut self, mode: AddressingMode) {
+    pub(super) fn sty(&mut self, mode: AddressingMode) {
         let addr = self.get_operand_address(mode);
         self.mem_write(addr, self.register_y);
     }
 
     /// TAX - Transfer Accumulator to X
-    pub(crate) fn tax(&mut self) {
+    pub(super) fn tax(&mut self) {
         self.register_x = self.register_a;
         self.update_zero_and_negative_flags(self.register_x);
     }
 
     /// TAY - Transfer Accumulator to Y
-    pub(crate) fn tay(&mut self) {
+    pub(super) fn tay(&mut self) {
         self.register_y = self.register_a;
         self.update_zero_and_negative_flags(self.register_y);
     }
 
     /// TSX - Transfer Stack Pointer to X
     /// TXA - Transfer X to Accumulator
-    pub(crate) fn txa(&mut self) {
+    pub(super) fn txa(&mut self) {
         self.register_a = self.register_x;
         self.update_zero_and_negative_flags(self.register_a);
     }
 
     /// TXS - Transfer X to Stack Pointer
     /// TYA - Transfer Y to Accumulator
-    pub(crate) fn tya(&mut self) {
+    pub(super) fn tya(&mut self) {
         self.register_a = self.register_y;
         self.update_zero_and_negative_flags(self.register_a);
     }

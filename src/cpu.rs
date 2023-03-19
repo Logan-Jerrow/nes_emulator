@@ -226,7 +226,7 @@ impl CPU {
     }
 
     // utility fn
-    pub(crate) fn get_operand_address(&self, mode: AddressingMode) -> u16 {
+    fn get_operand_address(&self, mode: AddressingMode) -> u16 {
         match mode {
             AddressingMode::Immediate => self.program_counter,
 
