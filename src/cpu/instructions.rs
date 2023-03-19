@@ -4,26 +4,8 @@ impl CPU {
     /// ADC - Add with Carry
     #[allow(clippy::cast_possible_truncation)]
     pub(super) fn adc(&mut self, mode: AddressingMode) {
-        let (addr, data) = self.get_memory(mode);
-
-        // convert u8 to u16 for easy carry bit logic
-        let sum: u16 = u16::from(self.register_a)
-            + u16::from(data) // add accmulator and value together; no worry if overflow because both are u8s
-            + u16::from(self.status.contains(CpuFlags::CARRY)); // Add 1 if carry bit was set
-
-        self.status.set(CpuFlags::CARRY, sum > u8::MAX.into());
-
-        // Truncate sum
-        // let result: u8 = sum as u8;
-        let [result, _]: [u8; 2] = sum.to_le_bytes(); // no 'as' keyword
-
-        // testing if sign bit is incorrect... somhow?
-        // 0x80 is 1<<7 (0b1000_0000) aka is neg bit set?
-        let msb = 1 << 7;
-        let pred = (result ^ data) & (result ^ self.register_a) & msb != 0;
-        self.status.set(CpuFlags::OVERFLOW, pred);
-
-        self.set_accumulator(result);
+        let (_, data) = self.get_memory(mode);
+        self.add_to_accumulator(data);
     }
 
     /// AND - Logical AND
@@ -58,7 +40,7 @@ impl CPU {
         self.msb_to_carry_flag(data);
 
         data <<= 1;
-        self.set_mem(addr, data);
+        self.set_memory(addr, data);
         data
     }
 
@@ -150,7 +132,7 @@ impl CPU {
     /// DEC - Decrement Memory
     pub(super) fn dec(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
-        self.set_mem(addr, data.wrapping_sub(1));
+        self.set_memory(addr, data.wrapping_sub(1));
     }
 
     /// DEX - Decrement X Register
@@ -174,7 +156,7 @@ impl CPU {
     /// INC - Increment Memory
     pub(super) fn inc(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
-        self.set_mem(addr, data.wrapping_add(1));
+        self.set_memory(addr, data.wrapping_add(1));
     }
 
     /// INX - Increment X Register
@@ -224,9 +206,7 @@ impl CPU {
     /// LDA - Load Accumulator
     pub(super) fn lda(&mut self, mode: AddressingMode) {
         let (addr, data) = self.get_memory(mode);
-
-        self.register_a = data;
-        self.update_zero_and_negative_flags(self.register_a);
+        self.set_accumulator(data);
     }
 
     /// LDX - Load X Register
@@ -268,7 +248,7 @@ impl CPU {
         self.lsb_to_carry_flag(data);
 
         data >>= 1;
-        self.set_mem(addr, data);
+        self.set_memory(addr, data);
         data
     }
 
@@ -281,14 +261,114 @@ impl CPU {
     }
 
     /// PHA - Push Accumulator
+    pub(super) fn pha(&mut self, mode: AddressingMode) {
+        self.stack_push(self.register_a);
+    }
+
     /// PHP - Push Processor Status
+    pub(super) fn php(&mut self, mode: AddressingMode) {
+        self.stack_push(self.status.bits());
+    }
+
     /// PLA - Pull Accumulator
+    pub(super) fn pla(&mut self, mode: AddressingMode) {
+        self.register_a = self.stack_pop();
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
     /// PLP - Pull Processor Status
+    pub(super) fn plp(&mut self, mode: AddressingMode) {
+        self.status = CpuFlags::from_bits_truncate(self.stack_pop());
+    }
+
     /// ROL - Rotate Left
+    pub(super) fn rol(&mut self, mode: AddressingMode) {
+        if mode == AddressingMode::Accumulator {
+            self.rol_accumulator();
+        } else {
+            self.rol_memory(mode);
+        }
+    }
+    fn rol_accumulator(&mut self) {
+        let mut data = self.register_a;
+        let carry = self.status.contains(CpuFlags::CARRY);
+        self.msb_to_carry_flag(data);
+        data <<= 1;
+        if carry {
+            data |= 1;
+        }
+
+        self.set_accumulator(data);
+    }
+
+    fn rol_memory(&mut self, mode: AddressingMode) {
+        let (addr, mut data) = self.get_memory(mode);
+        let carry = self.status.contains(CpuFlags::CARRY);
+        self.msb_to_carry_flag(data);
+        data <<= 1;
+        if carry {
+            data |= 1;
+        }
+
+        self.set_memory(addr, data);
+    }
+
     /// ROR - Rotate Right
+    pub(super) fn ror(&mut self, mode: AddressingMode) {
+        if mode == AddressingMode::Accumulator {
+            self.rol_accumulator();
+        } else {
+            self.rol_memory(mode);
+        }
+    }
+    fn ror_accumulator(&mut self) {
+        let mut data = self.register_a;
+        let carry = self.status.contains(CpuFlags::CARRY);
+        self.lsb_to_carry_flag(data);
+        data >>= 1;
+        if carry {
+            data |= (1 << 7);
+        }
+
+        self.set_accumulator(data);
+    }
+
+    fn ror_memory(&mut self, mode: AddressingMode) {
+        let (addr, mut data) = self.get_memory(mode);
+        let carry = self.status.contains(CpuFlags::CARRY);
+        self.lsb_to_carry_flag(data);
+        data >>= 1;
+        if carry {
+            data |= (1 << 7);
+        }
+
+        self.set_memory(addr, data);
+    }
+
     /// RTI - Return from Interrupt
+    pub(super) fn rti(&mut self) {
+        self.status = CpuFlags::from_bits_truncate(self.stack_pop());
+        self.status.remove(CpuFlags::BREAK);
+        self.status.insert(CpuFlags::BREAK2);
+
+        self.program_counter = self.stack_pop_u16();
+    }
+
     /// RTS - Return from Subroutine
+    pub(super) fn rts(&mut self) {
+        self.program_counter = self.stack_pop_u16() + 1;
+    }
+
     /// SBC - Subtract with Carry
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_wrap)]
+    pub(super) fn sbc(&mut self, mode: AddressingMode) {
+        let (_, data) = self.get_memory(mode);
+        let data = i8::from_le_bytes([data]);
+        let data = (data).wrapping_neg().wrapping_sub(1);
+        let [data] = i8::to_le_bytes(data);
+        self.add_to_accumulator(data);
+    }
+
     /// SEC - Set Carry Flag
     pub(super) fn sec(&mut self) {
         self.status.insert(CpuFlags::CARRY);

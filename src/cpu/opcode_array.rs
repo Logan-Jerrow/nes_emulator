@@ -114,7 +114,7 @@ const INSTRUCTION_ARRAY: [OpCode; 151] = [
     (OpCode::new(0x41, Mnemonic::Eor, 2, 6, AddressingMode::Indirect_X)),
     (OpCode::new(0x51, Mnemonic::Eor, 2, 5, AddressingMode::Indirect_Y)), /* +1 if page crossed */
     // INC - Increment Memory
-    (OpCode::new(0xEE, Mnemonic::Inc, 2, 5, AddressingMode::ZeroPage)),
+    (OpCode::new(0xE6, Mnemonic::Inc, 2, 5, AddressingMode::ZeroPage)),
     (OpCode::new(0xF6, Mnemonic::Inc, 2, 6, AddressingMode::ZeroPage_X)),
     (OpCode::new(0xEE, Mnemonic::Inc, 3, 6, AddressingMode::Absolute)),
     (OpCode::new(0xFE, Mnemonic::Inc, 3, 7, AddressingMode::Absolute_X)),

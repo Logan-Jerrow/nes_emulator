@@ -97,8 +97,6 @@ impl CPU {
         F: FnMut(&mut Self),
     {
         loop {
-            callback(self);
-
             let raw_opcode = self.mem_read(self.program_counter);
             self.program_counter += 1;
             let program_counter_state = self.program_counter;
@@ -140,15 +138,15 @@ impl CPU {
                 Mnemonic::Lsr => self.lsr(opcode.mode),
                 Mnemonic::Nop => (),
                 Mnemonic::Ora => self.ora(opcode.mode),
-                Mnemonic::Pha => todo!(),
-                Mnemonic::Php => todo!(),
-                Mnemonic::Pla => todo!(),
-                Mnemonic::Plp => todo!(),
-                Mnemonic::Rol => todo!(),
-                Mnemonic::Ror => todo!(),
-                Mnemonic::Rti => todo!(),
-                Mnemonic::Rts => todo!(),
-                Mnemonic::Sbc => todo!(),
+                Mnemonic::Pha => self.pha(opcode.mode),
+                Mnemonic::Php => self.php(opcode.mode),
+                Mnemonic::Pla => self.pla(opcode.mode),
+                Mnemonic::Plp => self.plp(opcode.mode),
+                Mnemonic::Rol => self.rol(opcode.mode),
+                Mnemonic::Ror => self.ror(opcode.mode),
+                Mnemonic::Rti => self.rti(),
+                Mnemonic::Rts => self.rts(),
+                Mnemonic::Sbc => self.sbc(opcode.mode),
                 Mnemonic::Sec => self.sec(),
                 Mnemonic::Sed => self.sed(),
                 Mnemonic::Sei => self.sei(),
@@ -167,6 +165,8 @@ impl CPU {
                 // minus one since we inc when mem_read @ start of fn
                 self.program_counter += u16::from(opcode.len - 1);
             }
+
+            callback(self);
         }
     }
 
@@ -216,11 +216,6 @@ impl CPU {
 
     pub fn stack_push_u16(&mut self, data: u16) {
         let [low, high] = data.to_le_bytes();
-        let hi = (data >> 8) as u8;
-        let lo = (data & 0xff) as u8;
-        assert_eq!(lo, low);
-        assert_eq!(hi, high);
-
         self.stack_push(high);
         self.stack_push(low);
     }
@@ -292,7 +287,7 @@ impl CPU {
         self.update_zero_and_negative_flags(data);
     }
 
-    fn set_mem(&mut self, addr: u16, data: u8) {
+    fn set_memory(&mut self, addr: u16, data: u8) {
         self.mem_write(addr, data);
         self.update_zero_and_negative_flags(data);
     }
@@ -319,15 +314,22 @@ impl CPU {
         self.status.set(CpuFlags::CARRY, value & 1 == 1);
     }
 
-    #[allow(clippy::cast_lossless)]
+    #[allow(
+        clippy::cast_lossless,
+        clippy::cast_possible_wrap,
+        clippy::cast_sign_loss
+    )]
     fn branch(&mut self, condition: bool) {
         if condition {
-            let jump = self.mem_read(self.program_counter) as i16;
+            let data = self.mem_read(self.program_counter);
+            let data = i8::from_le_bytes([data]);
+            let data = i16::from(data);
+
             self.program_counter = self
                 .program_counter
                 // program counter increment durring instruction execution
                 .wrapping_add(1)
-                .wrapping_add_signed(jump);
+                .wrapping_add_signed(data);
         }
     }
 
@@ -335,6 +337,27 @@ impl CPU {
         let (addr, data) = self.get_memory(mode);
         self.status.set(CpuFlags::CARRY, with >= data);
         self.update_zero_and_negative_flags(with.wrapping_sub(data));
+    }
+
+    fn add_to_accumulator(&mut self, data: u8) {
+        // convert u8 to u16 for easy carry bit logic
+        let sum: u16 = u16::from(self.register_a)
+            + u16::from(data) // add accmulator and value together; no worry if overflow because both are u8s
+            + u16::from(self.status.contains(CpuFlags::CARRY)); // Add 1 if carry bit was set
+
+        self.status.set(CpuFlags::CARRY, sum > u8::MAX.into());
+
+        // Truncate sum
+        // let result: u8 = sum as u8;
+        let [result, _]: [u8; 2] = sum.to_le_bytes(); // no 'as' keyword
+
+        // testing if sign bit is incorrect... somhow?
+        // 0x80 is 1<<7 (0b1000_0000) aka is neg bit set?
+        let msb = 1 << 7;
+        let pred = (result ^ data) & (result ^ self.register_a) & msb != 0;
+        self.status.set(CpuFlags::OVERFLOW, pred);
+
+        self.set_accumulator(result);
     }
 }
 
