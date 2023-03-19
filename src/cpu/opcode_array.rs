@@ -1,10 +1,15 @@
 use crate::{
     addressing_mode::AddressingMode,
-    opcode::{mnemonic::Mnemonic, OpCode},
+    opcode::{self, mnemonic::Mnemonic, OpCode},
 };
 
+#[must_use]
+pub fn decode(raw: opcode::Raw) -> OpCode {
+    INSTRUCTIONS[usize::from(raw)].unwrap_or_else(|| panic!("OpCode {raw:#04x} is not recognized."))
+}
+
 const LEN: usize = 0xFF;
-pub const INSTRUCTIONS: [Option<OpCode>; LEN] = padded_array();
+const INSTRUCTIONS: [Option<OpCode>; LEN] = padded_array();
 
 const fn padded_array() -> [Option<OpCode>; LEN] {
     let mut array = [None; LEN];

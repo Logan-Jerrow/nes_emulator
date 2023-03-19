@@ -32,6 +32,30 @@ mod cpuflags;
 mod instructions;
 mod opcode_array;
 
+// https://archive.nes.science/nesdev-forums/f3/t715.xhtml#p7591
+// by WedNESday on 2005-12-21 (#7591)
+// It doesn't matter where it starts as it wraps anyway and all programmers are aware of that.
+// The NES may set it to 0xFD on power-up/reset (I wasn't aware of that until now) but don't
+// worry about it. Most emulators of the 6502 set it to 0xFF. Just make sure that your stack
+// pointer is 8-bit and works something like this;
+//
+// CPU.Memory[Stack + 0x100] = ...
+//
+//
+// https://old.reddit.com/r/EmuDev/comments/g8ky04/6502_startreset_sequence_and_nestest/
+//
+// It started at zero. As part of the reset process the CPU decremented S three times. By the
+// time the first program instruction is executed S is $FD (0 minus 3).
+const STACK_RESET: u8 = 0xFD; // 0 - 3 = 0xfd (Wrapping!)
+
+// Stack Pointer - Memory space [0x0100 .. 0x01FF] is used for stack.
+const STACK_START: u16 = 0x0100;
+const STACK_MEMORY_END: u16 = 0x01FF;
+
+// [0x8000 .. 0xFFFF] Program ROM (PRG ROM)
+const PRG_ROM_START_ADDR: u16 = 0x0600;
+const PRG_ROM_EXEC_ADDR: u16 = 0xFFFC;
+
 #[derive(Debug)]
 pub struct CPU {
     register_a: u8,
@@ -50,7 +74,7 @@ impl Default for CPU {
             register_x: 0,
             register_y: 0,
             program_counter: 0,
-            stack_ptr: Self::STACK_RESET,
+            stack_ptr: STACK_RESET,
             status: CpuFlags::default(),
             memory: [0; 0xFFFF],
         }
@@ -68,192 +92,6 @@ impl Memory for CPU {
 }
 
 impl CPU {
-    // [0x8000 .. 0xFFFF] Program ROM (PRG ROM)
-    const PRG_ROM_START_ADDR: u16 = 0x0600;
-    const PRG_ROM_EXEC_ADDR: u16 = 0xFFFC;
-
-    // Stack Pointer - Memory space [0x0100 .. 0x01FF] is used for stack.
-    const STACK_START: u16 = 0x0100;
-    const STACK_MEMORY_END: u16 = 0x01FF;
-
-    // https://archive.nes.science/nesdev-forums/f3/t715.xhtml#p7591
-    // by WedNESday on 2005-12-21 (#7591)
-    // It doesn't matter where it starts as it wraps anyway and all programmers are aware of that.
-    // The NES may set it to 0xFD on power-up/reset (I wasn't aware of that until now) but don't
-    // worry about it. Most emulators of the 6502 set it to 0xFF. Just make sure that your stack
-    // pointer is 8-bit and works something like this;
-    //
-    // CPU.Memory[Stack + 0x100] = ...
-    //
-    //
-    // https://old.reddit.com/r/EmuDev/comments/g8ky04/6502_startreset_sequence_and_nestest/
-    //
-    // It started at zero. As part of the reset process the CPU decremented S three times. By the
-    // time the first program instruction is executed S is $FD (0 minus 3).
-    const STACK_RESET: u8 = 0xFD; // 0 - 3 = 0xfd (Wrapping!)
-
-    fn get_memory(&mut self, mode: AddressingMode) -> (u16, u8) {
-        let addr = self.get_operand_address(mode);
-        let value = self.mem_read(addr);
-
-        (addr, value)
-    }
-
-    fn set_accumulator(&mut self, data: u8) {
-        self.register_a = data;
-        self.update_zero_and_negative_flags(data);
-    }
-
-    fn set_mem(&mut self, addr: u16, data: u8) {
-        self.mem_write(addr, data);
-        self.update_zero_and_negative_flags(data);
-    }
-
-    fn update_zero_and_negative_flags(&mut self, result: u8) {
-        self.update_zero_flag(result);
-        self.update_negative_flag(result);
-    }
-
-    fn update_zero_flag(&mut self, result: u8) {
-        self.status.set(CpuFlags::ZERO, result == 0);
-    }
-
-    fn update_negative_flag(&mut self, result: u8) {
-        self.status.set(CpuFlags::NEGATIV, result >> 7 == 1);
-    }
-
-    /// msb = bit 7 for u8
-    fn msb_to_carry_flag(&mut self, value: u8) {
-        self.status.set(CpuFlags::CARRY, value >> 7 == 1);
-    }
-
-    fn lsb_to_carry_flag(&mut self, value: u8) {
-        self.status.set(CpuFlags::CARRY, value & 1 == 1);
-    }
-
-    #[allow(clippy::cast_lossless)]
-    fn branch(&mut self, condition: bool) {
-        if condition {
-            let jump = self.mem_read(self.program_counter) as i16;
-            self.program_counter = self
-                .program_counter
-                // program counter increment durring instruction execution
-                .wrapping_add(1)
-                .wrapping_add_signed(jump);
-        }
-    }
-
-    fn compare(&mut self, mode: AddressingMode, with: u8) {
-        let (addr, data) = self.get_memory(mode);
-        self.status.set(CpuFlags::CARRY, with >= data);
-        self.update_zero_and_negative_flags(with.wrapping_sub(data));
-    }
-
-    fn stack_pop(&mut self) -> u8 {
-        self.stack_ptr = self.stack_ptr.wrapping_add(1);
-        self.mem_read(Self::STACK_START + u16::from(self.stack_ptr))
-    }
-
-    fn stack_push(&mut self, data: u8) {
-        self.mem_write(Self::STACK_START + u16::from(self.stack_ptr), data);
-        self.stack_ptr = self.stack_ptr.wrapping_sub(1);
-    }
-
-    fn stack_pop_u16(&mut self) -> u16 {
-        let low = self.stack_pop();
-        let high = self.stack_pop();
-        u16::from_le_bytes([low, high])
-    }
-
-    fn stack_push_u16(&mut self, data: u16) {
-        let [low, high] = data.to_le_bytes();
-        let hi = (data >> 8) as u8;
-        let lo = (data & 0xff) as u8;
-        assert_eq!(lo, low);
-        assert_eq!(hi, high);
-
-        self.stack_push(high);
-        self.stack_push(low);
-    }
-
-    #[must_use]
-    pub fn decode(&self, raw: opcode::Raw) -> OpCode {
-        opcode_array::INSTRUCTIONS[usize::from(raw)]
-            .unwrap_or_else(|| panic!("OpCode {raw:#04x} is not recognized."))
-    }
-
-    pub fn reset(&mut self) {
-        self.register_a = 0;
-        self.register_x = 0;
-        self.register_y = 0;
-        self.stack_ptr = Self::STACK_RESET;
-        self.status = CpuFlags::default();
-        // memory: [0; 0xFFFF],
-
-        self.program_counter = self.mem_read_u16(Self::PRG_ROM_EXEC_ADDR);
-    }
-
-    pub fn load_and_run(&mut self, program: &[u8]) {
-        self.load(program);
-        self.reset();
-        self.run();
-    }
-
-    pub fn load(&mut self, program: &[u8]) {
-        let start: usize = Self::PRG_ROM_START_ADDR.into();
-        self.memory[start..(start + program.len())].copy_from_slice(program);
-        self.mem_write_u16(Self::PRG_ROM_EXEC_ADDR, Self::PRG_ROM_START_ADDR);
-    }
-
-    fn get_operand_address(&self, mode: AddressingMode) -> u16 {
-        match mode {
-            AddressingMode::Immediate => self.program_counter,
-            AddressingMode::ZeroPage => self.mem_read(self.program_counter).into(),
-            AddressingMode::Absolute => self.mem_read_u16(self.program_counter),
-            AddressingMode::ZeroPage_X => {
-                let pos = self.mem_read(self.program_counter);
-                pos.wrapping_add(self.register_x).into()
-            }
-            AddressingMode::ZeroPage_Y => {
-                let pos = self.mem_read(self.program_counter);
-                pos.wrapping_add(self.register_y).into()
-            }
-            AddressingMode::Absolute_X => {
-                let base = self.mem_read_u16(self.program_counter);
-                base.wrapping_add(self.register_x.into())
-            }
-            AddressingMode::Absolute_Y => {
-                let base = self.mem_read_u16(self.program_counter);
-                base.wrapping_add(self.register_y.into())
-            }
-            AddressingMode::Indirect_X => {
-                let base = self.mem_read(self.program_counter);
-
-                let ptr: u8 = base.wrapping_add(self.register_x);
-                let lo = self.mem_read(ptr.into());
-                let hi = self.mem_read(ptr.wrapping_add(1).into());
-
-                u16::from_le_bytes([lo, hi])
-            }
-            AddressingMode::Indirect_Y => {
-                let base = self.mem_read(self.program_counter);
-                let lo = self.mem_read(base.into());
-                let hi = self.mem_read(base.wrapping_add(1).into());
-                let deref_base = u16::from_le_bytes([lo, hi]);
-
-                deref_base.wrapping_add(self.register_y.into())
-            }
-            AddressingMode::Implicit
-            | AddressingMode::Accumulator
-            | AddressingMode::Relative
-            | AddressingMode::Indirect => panic!("mode {mode:?} is not supported."),
-        }
-    }
-
-    pub fn run(&mut self) {
-        self.run_with_callback(|_| {});
-    }
-
     pub fn run_with_callback<F>(&mut self, mut callback: F)
     where
         F: FnMut(&mut Self),
@@ -265,7 +103,7 @@ impl CPU {
             self.program_counter += 1;
             let program_counter_state = self.program_counter;
 
-            let opcode = self.decode(raw_opcode);
+            let opcode = opcode_array::decode(raw_opcode);
             match opcode.mnemonic {
                 Mnemonic::Adc => self.adc(opcode.mode),
                 Mnemonic::And => self.and(opcode.mode),
@@ -330,6 +168,173 @@ impl CPU {
                 self.program_counter += u16::from(opcode.len - 1);
             }
         }
+    }
+
+    pub fn run(&mut self) {
+        self.run_with_callback(|_| {});
+    }
+
+    pub fn load(&mut self, program: &[u8]) {
+        let start: usize = PRG_ROM_START_ADDR.into();
+        self.memory[start..(start + program.len())].copy_from_slice(program);
+        self.mem_write_u16(PRG_ROM_EXEC_ADDR, PRG_ROM_START_ADDR);
+    }
+
+    pub fn load_and_run(&mut self, program: &[u8]) {
+        self.load(program);
+        self.reset();
+        self.run();
+    }
+
+    pub fn reset(&mut self) {
+        self.register_a = 0;
+        self.register_x = 0;
+        self.register_y = 0;
+        self.stack_ptr = STACK_RESET;
+        self.status = CpuFlags::default();
+        // memory: [0; 0xFFFF],
+
+        self.program_counter = self.mem_read_u16(PRG_ROM_EXEC_ADDR);
+    }
+
+    // Stack impl
+    pub fn stack_pop(&mut self) -> u8 {
+        self.stack_ptr = self.stack_ptr.wrapping_add(1);
+        self.mem_read(STACK_START + u16::from(self.stack_ptr))
+    }
+
+    pub fn stack_push(&mut self, data: u8) {
+        self.mem_write(STACK_START + u16::from(self.stack_ptr), data);
+        self.stack_ptr = self.stack_ptr.wrapping_sub(1);
+    }
+
+    pub fn stack_pop_u16(&mut self) -> u16 {
+        let low = self.stack_pop();
+        let high = self.stack_pop();
+        u16::from_le_bytes([low, high])
+    }
+
+    pub fn stack_push_u16(&mut self, data: u16) {
+        let [low, high] = data.to_le_bytes();
+        let hi = (data >> 8) as u8;
+        let lo = (data & 0xff) as u8;
+        assert_eq!(lo, low);
+        assert_eq!(hi, high);
+
+        self.stack_push(high);
+        self.stack_push(low);
+    }
+
+    // utility fn
+    pub(crate) fn get_operand_address(&self, mode: AddressingMode) -> u16 {
+        match mode {
+            AddressingMode::Immediate => self.program_counter,
+
+            AddressingMode::ZeroPage => self.mem_read(self.program_counter).into(),
+
+            AddressingMode::Absolute => self.mem_read_u16(self.program_counter),
+
+            AddressingMode::ZeroPage_X => {
+                let pos = self.mem_read(self.program_counter);
+                pos.wrapping_add(self.register_x).into()
+            }
+
+            AddressingMode::ZeroPage_Y => {
+                let pos = self.mem_read(self.program_counter);
+                pos.wrapping_add(self.register_y).into()
+            }
+
+            AddressingMode::Absolute_X => {
+                let base = self.mem_read_u16(self.program_counter);
+                base.wrapping_add(self.register_x.into())
+            }
+
+            AddressingMode::Absolute_Y => {
+                let base = self.mem_read_u16(self.program_counter);
+                base.wrapping_add(self.register_y.into())
+            }
+
+            AddressingMode::Indirect_X => {
+                let base = self.mem_read(self.program_counter);
+
+                let ptr: u8 = base.wrapping_add(self.register_x);
+                let lo = self.mem_read(ptr.into());
+                let hi = self.mem_read(ptr.wrapping_add(1).into());
+
+                u16::from_le_bytes([lo, hi])
+            }
+
+            AddressingMode::Indirect_Y => {
+                let base = self.mem_read(self.program_counter);
+                let lo = self.mem_read(base.into());
+                let hi = self.mem_read(base.wrapping_add(1).into());
+                let deref_base = u16::from_le_bytes([lo, hi]);
+
+                deref_base.wrapping_add(self.register_y.into())
+            }
+
+            AddressingMode::Implicit
+            | AddressingMode::Accumulator
+            | AddressingMode::Relative
+            | AddressingMode::Indirect => panic!("mode {mode:?} is not supported."),
+        }
+    }
+
+    fn get_memory(&mut self, mode: AddressingMode) -> (u16, u8) {
+        let addr = self.get_operand_address(mode);
+        let value = self.mem_read(addr);
+
+        (addr, value)
+    }
+
+    fn set_accumulator(&mut self, data: u8) {
+        self.register_a = data;
+        self.update_zero_and_negative_flags(data);
+    }
+
+    fn set_mem(&mut self, addr: u16, data: u8) {
+        self.mem_write(addr, data);
+        self.update_zero_and_negative_flags(data);
+    }
+
+    fn update_zero_and_negative_flags(&mut self, result: u8) {
+        self.update_zero_flag(result);
+        self.update_negative_flag(result);
+    }
+
+    fn update_zero_flag(&mut self, result: u8) {
+        self.status.set(CpuFlags::ZERO, result == 0);
+    }
+
+    fn update_negative_flag(&mut self, result: u8) {
+        self.status.set(CpuFlags::NEGATIV, result >> 7 == 1);
+    }
+
+    /// msb = bit 7 for u8
+    fn msb_to_carry_flag(&mut self, value: u8) {
+        self.status.set(CpuFlags::CARRY, value >> 7 == 1);
+    }
+
+    fn lsb_to_carry_flag(&mut self, value: u8) {
+        self.status.set(CpuFlags::CARRY, value & 1 == 1);
+    }
+
+    #[allow(clippy::cast_lossless)]
+    fn branch(&mut self, condition: bool) {
+        if condition {
+            let jump = self.mem_read(self.program_counter) as i16;
+            self.program_counter = self
+                .program_counter
+                // program counter increment durring instruction execution
+                .wrapping_add(1)
+                .wrapping_add_signed(jump);
+        }
+    }
+
+    fn compare(&mut self, mode: AddressingMode, with: u8) {
+        let (addr, data) = self.get_memory(mode);
+        self.status.set(CpuFlags::CARRY, with >= data);
+        self.update_zero_and_negative_flags(with.wrapping_sub(data));
     }
 }
 
