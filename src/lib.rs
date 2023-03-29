@@ -19,6 +19,7 @@
 )]
 
 mod addressing_mode;
+mod bus;
 pub mod cpu;
 mod opcode;
 
